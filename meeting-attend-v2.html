@@ -785,7 +785,7 @@ function setSigMode(mode) {
 }
 
 // ============ SUBMIT ============
-function submitAttendance() {
+async function submitAttendance() {
   let ok = true;
 
   // Validate name
@@ -823,33 +823,30 @@ function submitAttendance() {
 
   if (!ok) return;
 
-  // Check attendance window
+  // Check attendance window (only if meeting info is available locally)
   const meetings = DB.get('mt_meetings');
   const meeting = meetings.find(m => m.id === meetingId);
   
-  if (!meeting) {
-    showToast('❌ Meeting not found', true);
-    return;
-  }
+  if (meeting) {
+    if (meeting.status === 'ended') {
+      showToast('❌ Attendance closed for this meeting', true);
+      return;
+    }
 
-  if (meeting.status === 'ended') {
-    showToast('❌ Attendance closed for this meeting', true);
-    return;
-  }
-
-  // Validate time window
-  const meetingTime = new Date(`${meeting.date}T${meeting.time}`);
-  const now = new Date();
-  
-  if (meetingTime > now) {
-    showToast('❌ Meeting hasn\'t started yet', true);
-    return;
-  }
-  
-  const minutesElapsed = (now - meetingTime) / 60000;
-  if (minutesElapsed > meeting.window) {
-    showToast(`❌ Attendance window closed (${meeting.window} min)`, true);
-    return;
+    // Validate time window
+    const meetingTime = new Date(`${meeting.date}T${meeting.time}`);
+    const now = new Date();
+    
+    if (meetingTime > now) {
+      showToast('❌ Meeting hasn\'t started yet', true);
+      return;
+    }
+    
+    const minutesElapsed = (now - meetingTime) / 60000;
+    if (minutesElapsed > meeting.window) {
+      showToast(`❌ Attendance window closed (${meeting.window} min)`, true);
+      return;
+    }
   }
 
   // Save attendance
