@@ -808,6 +808,8 @@ function doLogin() {
       logout();
       showToast('⏱ Session expired for security', true);
     }, 30 * 60 * 1000);
+    // Attempt server login to obtain admin token (non-blocking)
+    serverLoginWithPin(pin).catch(err => console.warn('Server login failed (non-blocking):', err));
   } else {
     // Failed login
     loginAttempts++;
@@ -827,6 +829,34 @@ function doLogin() {
     document.getElementById('loginErr').classList.add('show');
     ['p1','p2','p3','p4'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('p1').focus();
+  }
+}
+
+function getServerBase() {
+  return API_URL.replace(/\/api\/?$/,'');
+}
+
+function getToken() {
+  return DB.getStr('mt_token', '');
+}
+
+async function serverLoginWithPin(pin) {
+  const base = getServerBase();
+  if (!base) throw new Error('Server base not configured');
+  try {
+    const res = await fetch(`${base}/api/auth/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin })
+    });
+    if (!res.ok) throw new Error('Server login failed');
+    const j = await res.json();
+    if (j && j.token) {
+      DB.set('mt_token', j.token);
+      return j.token;
+    }
+    throw new Error('No token returned');
+  } catch (e) {
+    throw e;
   }
 }
 
@@ -1286,31 +1316,78 @@ function updateJSONStatus(msg) {
   if (!stat) return;
   const jkey = DB.getStr('mt_json_key', '');
   const jbin = DB.getStr('mt_json_bin', '');
+  const token = getToken();
   if (!jkey || !jbin) stat.textContent = 'JSONBin not configured.';
-  else stat.textContent = msg || 'JSONBin configured. Ready to sync.';
+  else stat.textContent = msg || (token ? 'JSONBin configured (server mode).' : 'JSONBin configured (client mode).');
 }
 
 function saveJSONBinSettings() {
   const k = document.getElementById('s_json_key').value.trim();
   const b = document.getElementById('s_json_bin').value.trim();
   if (!k || !b) { showToast('❌ Provide both API Key and Bin ID', true); return; }
-  DB.set('mt_json_key', k);
-  DB.set('mt_json_bin', b);
-  updateJSONStatus('✅ JSONBin credentials saved locally');
-  showToast('✅ JSONBin saved');
+  // Prefer saving on server (secure). If server unavailable, fall back to local storage.
+  const base = getServerBase();
+  const tryServer = async () => {
+    try {
+      let token = getToken();
+      if (!token) {
+        try { token = await serverLoginWithPin(getPin()); } catch(e) { /* ignore */ }
+      }
+      if (!token) throw new Error('No admin token');
+      const res = await fetch(`${base}/api/admin/jsonbin`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ key: k, bin: b })
+      });
+      if (!res.ok) throw new Error('Server save failed');
+      // Remove local copies for security
+      DB.remove('mt_json_key'); DB.remove('mt_json_bin');
+      updateJSONStatus('✅ JSONBin saved on server');
+      showToast('✅ JSONBin saved (server)');
+      return true;
+    } catch (err) {
+      console.warn('Server save failed, falling back to local:', err);
+      return false;
+    }
+  };
+
+  const usedServer = await tryServer();
+  if (!usedServer) {
+    DB.set('mt_json_key', k);
+    DB.set('mt_json_bin', b);
+    updateJSONStatus('✅ JSONBin credentials saved locally');
+    showToast('✅ JSONBin saved (local)');
+  }
 }
 
 async function testJSONBin() {
+  // Try server first
+  const base = getServerBase();
+  let token = getToken();
+  if (!token) {
+    try { token = await serverLoginWithPin(getPin()); } catch(e) { /* ignore */ }
+  }
+  if (token) {
+    try {
+      const res = await fetch(`${base}/api/admin/jsonbin`, { method: 'GET', headers: { 'Authorization': 'Bearer ' + token } });
+      if (!res.ok) throw new Error('Server test failed');
+      const j = await res.json();
+      showToast('✅ JSONBin configured on server');
+      updateJSONStatus('✅ JSONBin configured on server');
+      return;
+    } catch (err) {
+      console.warn('Server test failed, falling back to client test', err);
+    }
+  }
+
+  // Fallback to client-side test
   const k = DB.getStr('mt_json_key', '');
   const b = DB.getStr('mt_json_bin', '');
   if (!k || !b) { showToast('❌ Missing JSONBin credentials', true); return; }
   try {
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${b}/latest`, {
-      method: 'GET', headers: { 'X-Master-Key': k }
-    });
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${b}/latest`, { method: 'GET', headers: { 'X-Master-Key': k } });
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
-    showToast('✅ JSONBin reachable');
-    updateJSONStatus('✅ JSONBin reachable.');
+    showToast('✅ JSONBin reachable (client)');
+    updateJSONStatus('✅ JSONBin reachable (client)');
   } catch (err) {
     console.error(err);
     showToast('❌ JSONBin test failed', true);
@@ -1319,22 +1396,32 @@ async function testJSONBin() {
 }
 
 async function pushToJSONBin() {
+  const payload = { exportDate: new Date().toISOString(), meetings: getMeetings(), attendance: getAttendance() };
+  const base = getServerBase();
+  let token = getToken();
+  if (!token) {
+    try { token = await serverLoginWithPin(getPin()); } catch(e) { /* ignore */ }
+  }
+  if (token) {
+    try {
+      const res = await fetch(`${base}/api/admin/jsonbin/push`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+      if (!res.ok) throw new Error('Server push failed');
+      showToast('✅ Synced to JSONBin (server)');
+      updateJSONStatus('Last sync: ' + new Date().toLocaleString());
+      return;
+    } catch (err) {
+      console.warn('Server push failed, falling back to client push', err);
+    }
+  }
+
+  // Fallback to client-side direct push
   const k = DB.getStr('mt_json_key', '');
   const b = DB.getStr('mt_json_bin', '');
   if (!k || !b) { showToast('❌ Missing JSONBin credentials', true); return; }
-  const payload = {
-    exportDate: new Date().toISOString(),
-    meetings: getMeetings(),
-    attendance: getAttendance()
-  };
   try {
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${b}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-Master-Key': k },
-      body: JSON.stringify(payload)
-    });
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${b}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Master-Key': k }, body: JSON.stringify(payload) });
     if (!res.ok) throw new Error(await res.text());
-    showToast('✅ Synced to JSONBin');
+    showToast('✅ Synced to JSONBin (client)');
     updateJSONStatus('Last sync: ' + new Date().toLocaleString());
   } catch (err) {
     console.error(err);
@@ -1344,6 +1431,26 @@ async function pushToJSONBin() {
 }
 
 async function pullFromJSONBin() {
+  const base = getServerBase();
+  let token = getToken();
+  if (!token) {
+    try { token = await serverLoginWithPin(getPin()); } catch(e) { /* ignore */ }
+  }
+  if (token) {
+    try {
+      const res = await fetch(`${base}/api/admin/jsonbin/pull`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+      if (!res.ok) throw new Error('Server pull failed');
+      const j = await res.json();
+      showToast('✅ Pulled & merged from JSONBin (server)');
+      updateJSONStatus('Last pull: ' + new Date().toLocaleString());
+      renderDashboard(); renderMeetings(); renderAttendance(); populateAttendanceFilter();
+      return;
+    } catch (err) {
+      console.warn('Server pull failed, falling back to client pull', err);
+    }
+  }
+
+  // Fallback to client-side pull
   const k = DB.getStr('mt_json_key', '');
   const b = DB.getStr('mt_json_bin', '');
   if (!k || !b) { showToast('❌ Missing JSONBin credentials', true); return; }
@@ -1354,7 +1461,7 @@ async function pullFromJSONBin() {
     const rec = data && data.record ? data.record : data;
     if (!rec) { showToast('❌ No record in bin', true); return; }
     mergeRemoteData(rec);
-    showToast('✅ Pulled data from JSONBin');
+    showToast('✅ Pulled data from JSONBin (client)');
     updateJSONStatus('Last pull: ' + new Date().toLocaleString());
   } catch (err) {
     console.error(err);
