@@ -310,6 +310,26 @@ async function submitAttendance() {
   };
 
   // Save to JSONBin
+  // Prefer server API if available (no client keys required)
+  try {
+    const srv = await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(record) });
+    if (srv.ok) {
+      const saved = await srv.json();
+      // Mark done locally and show success
+      try { localStorage.setItem(`mt_done_${meetingId}`, JSON.stringify({ name, timestamp: record.timestamp })); } catch (e) { console.warn('Could not set completion flag', e); }
+      btn.disabled=false; btn.textContent='✅ Mark My Attendance';
+      showSuccess(record);
+      return;
+    }
+    // If server responded with a client-friendly error, show it
+    const txt = await srv.text();
+    try { const pj = JSON.parse(txt); if (pj && pj.error) { btn.disabled=false; btn.textContent='✅ Mark My Attendance'; showErr('❌ ' + pj.error); return; } } catch(e){/* ignore */}
+  } catch (e) {
+    // server call failed — fall back to JSONBin client flow
+    console.warn('Server submit failed, falling back to JSONBin client:', e);
+  }
+
+  // Fallback: use JSONBin client-side (requires mt_jb_key and mt_jb_bin in localStorage)
   if (!JB.ready) {
     btn.disabled=false; btn.textContent='✅ Mark My Attendance';
     showErr('❌ System config error. Admin se contact karein.'); return;
