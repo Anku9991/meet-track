@@ -50,6 +50,23 @@ const loginLimiter = rateLimit({
 
 app.use('/api/', limiter);
 
+// ============ SERVE STATIC FRONTEND ============
+app.get('/', (req, res) => res.sendFile(path.join(process.cwd(), 'meeting-admin-v2.html')));
+app.get('/:page.html', (req, res) => {
+  const page = req.params.page;
+  const allowedPages = ['meeting-admin-v2', 'meeting-admin', 'meeting-attend-v2', 'meeting-attend'];
+  if (allowedPages.includes(page)) {
+    const filePath = path.join(process.cwd(), `${page}.html`);
+    if (fs.existsSync(filePath)) {
+      res.sendFile(filePath);
+    } else {
+      res.status(404).send('Page not found');
+    }
+  } else {
+    res.status(404).send('Page not found');
+  }
+});
+
 // ============ IN-MEMORY DATABASE (For MVP) ============
 // In production, use MongoDB with persistence
 let db = {

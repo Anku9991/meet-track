@@ -956,7 +956,57 @@ window.addEventListener('load', () => {
   }
 });
 
-// ============ JSONBIN SYNC (optional) ============
+// ============ OFFLINE QUEUE + RETRY LOGIC ============
+const Queue = {
+  key: 'mt_submit_queue_v2',
+  max_retries: 5,
+  backoff_ms: 1000,
+
+  getQueue() { try { return JSON.parse(localStorage.getItem(this.key) || '[]'); } catch (e) { return []; } },
+  saveQueue(q) { try { localStorage.setItem(this.key, JSON.stringify(q)); } catch (e) { console.warn('Queue save failed', e); } },
+  
+  add(record) {
+    const q = this.getQueue();
+    q.push({ record, attempts: 0, addedAt: Date.now() });
+    this.saveQueue(q);
+  },
+  
+  async processNext() {
+    const q = this.getQueue();
+    if (q.length === 0) return null;
+    
+    const item = q[0];
+    const delay = item.attempts > 0 ? this.backoff_ms * Math.pow(2, item.attempts - 1) : 0;
+    
+    if (Date.now() - item.addedAt < delay) return null;
+    if (item.attempts >= this.max_retries) {
+      q.shift();
+      this.saveQueue(q);
+      console.warn('Attendance abandoned after', this.max_retries, 'retries');
+      return null;
+    }
+    
+    try {
+      const res = await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item.record) });
+      if (res.ok) {
+        q.shift();
+        this.saveQueue(q);
+        console.log('Queued attendance synced');
+        return item.record;
+      }
+    } catch (err) {
+      console.warn('Queue attempt', item.attempts + 1, 'failed:', err.message);
+    }
+    
+    item.attempts++;
+    this.saveQueue(q);
+    return null;
+  }
+};
+
+setInterval(() => Queue.processNext().catch(e => console.warn('Queue sync:', e)), 5000);
+
+// ============ JSONBIN SYNC (optional, server-first now) ============
 async function syncLocalToJSONBin() {
   const k = DB.getStr('mt_json_key', '');
   const b = DB.getStr('mt_json_bin', '');

@@ -102,6 +102,57 @@ const mtgTime  = params.get('time')  || '';
 const mtgVenue = params.get('venue') || '';
 const mtgTopic = params.get('topic') || '';
 
+// ============ OFFLINE QUEUE + RETRY LOGIC ============
+const Queue = {
+  key: 'mt_submit_queue',
+  max_retries: 5,
+  backoff_ms: 1000, // start at 1s, exponential
+
+  getQueue() { try { return JSON.parse(localStorage.getItem(this.key) || '[]'); } catch (e) { return []; } },
+  saveQueue(q) { try { localStorage.setItem(this.key, JSON.stringify(q)); } catch (e) { console.warn('Queue save failed', e); } },
+  
+  add(record) {
+    const q = this.getQueue();
+    q.push({ record, attempts: 0, addedAt: Date.now() });
+    this.saveQueue(q);
+  },
+  
+  async processNext() {
+    const q = this.getQueue();
+    if (q.length === 0) return null;
+    
+    const item = q[0];
+    const delay = item.attempts > 0 ? this.backoff_ms * Math.pow(2, item.attempts - 1) : 0;
+    
+    if (Date.now() - item.addedAt < delay) return null; // not ready yet
+    if (item.attempts >= this.max_retries) {
+      q.shift();
+      this.saveQueue(q);
+      console.warn('Attendance submission abandoned after', this.max_retries, 'retries');
+      return null;
+    }
+    
+    try {
+      const res = await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item.record) });
+      if (res.ok) {
+        q.shift();
+        this.saveQueue(q);
+        console.log('Queued attendance submitted successfully');
+        return item.record;
+      }
+    } catch (err) {
+      console.warn('Queue submit attempt', item.attempts + 1, 'failed:', err.message);
+    }
+    
+    item.attempts++;
+    this.saveQueue(q);
+    return null;
+  }
+};
+
+// Start background sync every 5s
+setInterval(() => Queue.processNext().catch(e => console.warn('Queue sync error', e)), 5000);
+
 // ============ JSONBIN — reads key+bin from localStorage (same domain as admin) ============
 const JB = {
   get apiKey(){ return localStorage.getItem('mt_jb_key') || ''; },
@@ -335,6 +386,15 @@ async function submitAttendance() {
     showErr('❌ System config error. Admin se contact karein.'); return;
   }
 
+  // If server submit failed, queue and retry
+  Queue.add(record);
+  btn.disabled=false; btn.textContent='✅ Mark My Attendance';
+  localStorage.setItem(`mt_done_${meetingId}`, JSON.stringify({name, timestamp: record.timestamp}));
+  showErr('⏳ Queued for retry (offline/server unavailable). Will sync when online.');
+  return;
+  
+  // Old JSONBin flow (removed — server-first only now)
+  /*
   try {
     const remote = await JB.read();
 
