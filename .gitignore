@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+package-lock.json
+npm-debug.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Data & Backups
+data.json
+backups/
+*.backup
+*.bak
+
+# Logs
+logs/
+*.log
+
+# OS Files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Build & Distribution
+dist/
+build/
+*.tgz
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Temporary
+tmp/
+temp/
+*.tmp
+.cache/
+
+# Security
+*.key
+*.pem
+secrets/

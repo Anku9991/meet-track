@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  # MeetTrack Backend API
+  api:
+    build: .
+    container_name: meettrack-api
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-production}
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      - LOG_LEVEL=info
+    volumes:
+      - ./data:/app/data
+      - ./backups:/app/backups
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # MongoDB (Optional - for future scalability)
+  # mongodb:
+  #   image: mongo:6-alpine
+  #   container_name: meettrack-db
+  #   ports:
+  #     - "27017:27017"
+  #   environment:
+  #     - MONGO_INITDB_ROOT_USERNAME=admin
+  #     - MONGO_INITDB_ROOT_PASSWORD=password123
+  #   volumes:
+  #     - mongodb_data:/data/db
+  #   restart: unless-stopped
+
+volumes:
+  data:
+  backups:
+  logs:
+  # mongodb_data:
+
+networks:
+  default:
+    name: meettrack-network

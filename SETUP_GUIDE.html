@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeetTrack Setup Guide</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0a0c10;
+    color: #e8eaf0;
+    line-height: 1.6;
+    padding: 40px 20px;
+  }
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  h1 {
+    color: #00d4aa;
+    margin-bottom: 30px;
+    font-size: 32px;
+  }
+  h2 {
+    color: #00d4aa;
+    margin-top: 40px;
+    margin-bottom: 20px;
+    font-size: 22px;
+    border-bottom: 2px solid #1e2430;
+    padding-bottom: 10px;
+  }
+  h3 {
+    color: #0099ff;
+    margin-top: 20px;
+    margin-bottom: 12px;
+  }
+  code {
+    background: #111318;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #00d4aa;
+    font-family: 'Courier New', monospace;
+  }
+  pre {
+    background: #111318;
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 15px 0;
+    border: 1px solid #1e2430;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .step {
+    background: #111318;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid #00d4aa;
+  }
+  .cmd {
+    background: #0a0c10;
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin: 10px 0;
+    border: 1px solid #1e2430;
+    display: inline-block;
+    font-family: 'Courier New', monospace;
+    color: #00d4aa;
+    font-size: 12px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+  }
+  th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #1e2430;
+  }
+  th {
+    background: #111318;
+    color: #00d4aa;
+  }
+  .success { color: #2ed573; }
+  .error { color: #ff4757; }
+  .warning { color: #ffa502; }
+  .info { color: #0099ff; }
+  ul, ol {
+    margin-left: 20px;
+    margin-bottom: 15px;
+  }
+  li {
+    margin-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<h1>🚀 MeetTrack v2.0 — Complete Setup Guide</h1>
+
+<h2>📌 System Architecture</h2>
+
+<pre>┌─────────────────────────────────────┐
+│     Frontend (HTML/CSS/JS)          │
+├─────────────────────────────────────┤
+│ • meeting-admin-v2.html              │
+│ • meeting-attend-v2.html             │
+└────────────────┬────────────────────┘
+                 │ HTTP/REST API
+                 ▼
+┌─────────────────────────────────────┐
+│    Backend (Node.js/Express)        │
+├─────────────────────────────────────┤
+│ • server.js (REST API endpoints)     │
+│ • Authentication (JWT/PIN)           │
+│ • Data persistence (JSON/MongoDB)    │
+└────────────────┬────────────────────┘
+                 │ File I/O
+                 ▼
+         ┌──────────────────┐
+         │  data.json       │
+         │  (Local Storage) │
+         └──────────────────┘</pre>
+
+<h2>✅ Installation Steps</h2>
+
+<div class="step">
+  <h3>Step 1: Install Dependencies</h3>
+  <p>Install Node.js from <code>https://nodejs.org</code> (v16 or newer)</p>
+  <div class="cmd">npm install</div>
+  <p style="margin-top: 10px; color: #5a6270;">This installs: Express, CORS, JWT, bcryptjs, validators, and security middleware</p>
+</div>
+
+<div class="step">
+  <h3>Step 2: Configure Environment</h3>
+  <p>Copy the example environment file:</p>
+  <div class="cmd">cp .env.example .env</div>
+  <p style="margin-top: 10px; color: #5a6270;">Edit <code>.env</code> and update <code>JWT_SECRET</code> with a strong password (min 32 characters)</p>
+</div>
+
+<div class="step">
+  <h3>Step 3: Start the Server</h3>
+  <p>For development with auto-reload:</p>
+  <div class="cmd">npm run dev</div>
+  <p style="margin-top: 10px; color: #5a6270;">Server starts at: <span class="success">http://localhost:3000</span></p>
+</div>
+
+<div class="step">
+  <h3>Step 4: Initialize Admin Account</h3>
+  <p>First time setup only. Send this request:</p>
+  <pre>curl -X POST http://localhost:3000/api/auth/init \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pin": "1234",
+    "password": "your_secure_password_min_8_chars"
+  }'</pre>
+  <p style="margin-top: 10px;"><span class="success">✓</span> Copy the <code>token</code> from response — you'll need it for all admin operations</p>
+</div>
+
+<h2>🔗 Frontend-Backend Integration</h2>
+
+<h3>Admin Portal Configuration</h3>
+
+<p>Edit <code>meeting-admin-v2.html</code> to add API configuration:</p>
+
+<pre>// Add near top of &lt;script&gt; section:
+const API_BASE = 'http://localhost:3000/api';  // Change to your backend URL
+let authToken = localStorage.getItem('auth_token');
+
+// Modify doLogin() to use backend:
+async function doLogin() {
+  const pin = document.getElementById('f_pin').value;
+  if (pin.length !== 4) {
+    showToast('❌ PIN must be 4 digits', true);
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin })
+    });
+    
+    if (!res.ok) {
+      const err = await res.json();
+      showToast(`❌ ${err.error}`, true);
+      return;
+    }
+    
+    const data = await res.json();
+    authToken = data.token;
+    localStorage.setItem('auth_token', authToken);
+    
+    // Now logged in
+    showDashboard();
+  } catch (e) {
+    showToast('❌ Connection error: ' + e.message, true);
+  }
+}</pre>
+
+<h3>Create Meeting via API</h3>
+
+<pre>async function createMeeting() {
+  // ... validation code ...
+  
+  const meeting = {
+    title: sanitize(document.getElementById('f_title').value, 100),
+    topic: sanitize(document.getElementById('f_topic').value, 2000),
+    date: document.getElementById('f_date').value,
+    time: document.getElementById('f_time').value,
+    venue: sanitize(document.getElementById('f_venue').value, 150),
+    organizer: sanitize(document.getElementById('f_organizer').value, 100),
+    dept: sanitize(document.getElementById('f_dept').value, 100),
+    expected: parseInt(document.getElementById('f_expected').value),
+    window: parseInt(document.getElementById('f_window').value)
+  };
+  
+  try {
+    const res = await fetch(`${API_BASE}/meetings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify(meeting)
+    });
+    
+    if (!res.ok) throw new Error(await res.text());
+    
+    const result = await res.json();
+    showToast('✓ Meeting created!');
+    loadMeetings();
+  } catch (e) {
+    showToast('❌ ' + e.message, true);
+  }
+}</pre>
+
+<h3>Get All Meetings</h3>
+
+<pre>async function loadMeetings() {
+  try {
+    const res = await fetch(`${API_BASE}/meetings`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    
+    if (!res.ok) throw new Error('Unauthorized');
+    
+    const result = await res.json();
+    db.meetings = result.data;
+    renderDashboard();
+  } catch (e) {
+    showToast('❌ Failed to load meetings', true);
+  }
+}</pre>
+
+<h3>Attendee Portal Configuration</h3>
+
+<p>Modify <code>meeting-attend-v2.html</code>:</p>
+
+<pre>// Add API configuration
+const API_BASE = 'http://localhost:3000/api';
+
+// Modify submitAttendance to use API:
+async function submitAttendance() {
+  // ... validation code ...
+  
+  const attendance = {
+    meetingId,
+    name,
+    designation,
+    department,
+    empId,
+    signature: sigData,
+    sigType,
+    device: navigator.userAgent
+  };
+  
+  try {
+    const res = await fetch(`${API_BASE}/attendance`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(attendance)
+    });
+    
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error);
+    }
+    
+    showSuccess(record);
+  } catch (e) {
+    showToast('❌ ' + e.message, true);
+  }
+}</pre>
+
+<h2>🐳 Docker Deployment</h2>
+
+<h3>Option 1: Docker Compose (Easiest)</h3>
+
+<pre>docker-compose up -d</pre>
+
+<p>This automatically:</p>
+<ul>
+  <li>Builds the Docker image</li>
+  <li>Starts the API container on port 3000</li>
+  <li>Creates data persistence volumes</li>
+  <li>Sets up health checks</li>
+</ul>
+
+<h3>Option 2: Manual Docker Build</h3>
+
+<pre>docker build -t meettrack:2.0 .
+docker run -d \
+  --name meettrack \
+  -p 3000:3000 \
+  -e JWT_SECRET="your-secret" \
+  -v meettrack-data:/app/data \
+  meettrack:2.0</pre>
+
+<h2>☁️ Cloud Deployment</h2>
+
+<table>
+  <tr>
+    <th>Platform</th>
+    <th>Difficulty</th>
+    <th>Cost</th>
+    <th>Setup Time</th>
+  </tr>
+  <tr>
+    <td>Vercel (Serverless)</td>
+    <td>Easy</td>
+    <td>Free tier available</td>
+    <td>5 min</td>
+  </tr>
+  <tr>
+    <td>Heroku</td>
+    <td>Easy</td>
+    <td>Free tier deprecated</td>
+    <td>10 min</td>
+  </tr>
+  <tr>
+    <td>AWS Lambda</td>
+    <td>Medium</td>
+    <td>Free tier available</td>
+    <td>20 min</td>
+  </tr>
+  <tr>
+    <td>DigitalOcean</td>
+    <td>Medium</td>
+    <td>$5/month</td>
+    <td>15 min</td>
+  </tr>
+  <tr>
+    <td>Self-hosted VPS</td>
+    <td>Hard</td>
+    <td>$3-10/month</td>
+    <td>30 min</td>
+  </tr>
+</table>
+
+<h2>🔒 Security Checklist</h2>
+
+<ul>
+  <li><span class="success">✓</span> Change default PIN (1234) to a strong 4-digit code</li>
+  <li><span class="success">✓</span> Update JWT_SECRET to 32+ character random string</li>
+  <li><span class="success">✓</span> Set NODE_ENV=production in deployment</li>
+  <li><span class="success">✓</span> Configure CORS_ORIGIN to your domain only</li>
+  <li><span class="success">✓</span> Enable HTTPS in production (use reverse proxy)</li>
+  <li><span class="success">✓</span> Setup automated backups</li>
+  <li><span class="success">✓</span> Monitor API logs for suspicious activity</li>
+  <li><span class="success">✓</span> Keep Node.js and packages updated</li>
+</ul>
+
+<h2>📊 API Testing</h2>
+
+<p>Use the following commands to test all API endpoints:</p>
+
+<pre># 1. Initialize admin
+curl -X POST http://localhost:3000/api/auth/init \
+  -H "Content-Type: application/json" \
+  -d '{"pin":"1234","password":"pass123456"}'
+
+# 2. Login
+RESP=$(curl -s -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"pin":"1234"}')
+TOKEN=$(echo $RESP | grep -o '"token":"[^"]*' | cut -d'"' -f4)
+
+# 3. Create meeting
+curl -X POST http://localhost:3000/api/meetings \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Test Meeting",
+    "topic": "Testing the API",
+    "date": "2024-01-20",
+    "time": "10:00",
+    "venue": "Room A",
+    "window": 60
+  }'
+
+# 4. Get meetings
+curl -X GET http://localhost:3000/api/meetings \
+  -H "Authorization: Bearer $TOKEN"
+
+# 5. Get stats
+curl -X GET http://localhost:3000/api/stats \
+  -H "Authorization: Bearer $TOKEN"</pre>
+
+<h2>🆘 Troubleshooting</h2>
+
+<table>
+  <tr>
+    <th>Problem</th>
+    <th>Solution</th>
+  </tr>
+  <tr>
+    <td>Connection refused (localhost:3000)</td>
+    <td>Server not running. Run <code>npm run dev</code></td>
+  </tr>
+  <tr>
+    <td>"Admin not found" error</td>
+    <td>Run initialization: <code>curl -X POST http://localhost:3000/api/auth/init ...</code></td>
+  </tr>
+  <tr>
+    <td>"Invalid token"</td>
+    <td>Token expired or invalid. Re-login to get new token</td>
+  </tr>
+  <tr>
+    <td>CORS error in browser</td>
+    <td>Update CORS_ORIGIN in .env to match frontend domain</td>
+  </tr>
+  <tr>
+    <td>Rate limit exceeded</td>
+    <td>Wait 15 minutes or reduce RATE_LIMIT_MAX_REQUESTS</td>
+  </tr>
+  <tr>
+    <td>Docker container won't start</td>
+    <td>Check logs: <code>docker logs meettrack</code></td>
+  </tr>
+</table>
+
+<h2>📈 Performance Optimization</h2>
+
+<h3>For High Volume (1000+ attendees/meeting)</h3>
+
+<ol>
+  <li><strong>Switch to MongoDB</strong>: Edit server.js and uncomment MongoDB section</li>
+  <li><strong>Add Redis Caching</strong>: Cache frequent queries</li>
+  <li><strong>Enable Compression</strong>: Add gzip middleware</li>
+  <li><strong>Use CDN</strong>: Serve static HTML files from CDN</li>
+  <li><strong>Load Balancing</strong>: Run multiple API instances behind nginx</li>
+</ol>
+
+<h2>✨ Final Checklist</h2>
+
+<ul>
+  <li>☐ Node.js 16+ installed</li>
+  <li>☐ <code>npm install</code> completed</li>
+  <li>☐ <code>.env</code> configured with strong JWT_SECRET</li>
+  <li>☐ Server running: <code>npm run dev</code></li>
+  <li>☐ Admin initialized via /api/auth/init</li>
+  <li>☐ Frontend HTML files updated with API_BASE URL</li>
+  <li>☐ Test API endpoints with curl/Postman</li>
+  <li>☐ Create test meeting and mark attendance</li>
+  <li>☐ Verify cross-device sync works</li>
+  <li>☐ Configure deployment (Docker/Vercel/etc)</li>
+  <li>☐ Setup backups and monitoring</li>
+  <li>☐ Deploy to production</li>
+</ul>
+
+<h2>🎉 Congratulations!</h2>
+
+<p>Your <strong>MeetTrack v2.0</strong> system is now production-ready with:</p>
+<ul>
+  <li>✅ Secure authentication and authorization</li>
+  <li>✅ Cross-device real-time synchronization</li>
+  <li>✅ Input validation and XSS prevention</li>
+  <li>✅ Rate limiting and abuse protection</li>
+  <li>✅ Data backup and restore capability</li>
+  <li>✅ Mobile-responsive design</li>
+  <li>✅ Professional enterprise architecture</li>
+</ul>
+
+<p style="margin-top: 40px; color: #5a6270; text-align: center;">
+  Need help? Check README.md or API documentation for details.
+</p>
+
+</div>
+
+</body>
+</html>

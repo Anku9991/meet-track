@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>MeetTrack — Mark Attendance</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&family=Dancing+Script:wght@600&display=swap');
+  :root{--bg:#0a0c10;--surface:#111318;--surface2:#181c24;--border:#1e2430;--accent:#00d4aa;--accent2:#0099ff;--danger:#ff4757;--text:#e8eaf0;--muted:#5a6270;}
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;}
+  body::before{content:'';position:fixed;top:0;left:0;right:0;height:300px;background:radial-gradient(ellipse at 50% -20%,rgba(0,212,170,0.08) 0%,transparent 70%);pointer-events:none;z-index:0;}
+  .page{width:100%;max-width:520px;padding:24px 16px 80px;position:relative;z-index:1;}
+  .logo{text-align:center;padding:32px 0 24px;}
+  .logo-text{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;letter-spacing:-0.5px;}
+  .logo-text span{color:var(--accent);}
+  .logo-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+  .meeting-banner{background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--accent);border-radius:16px;padding:24px;margin-bottom:24px;}
+  .mtg-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:6px;}
+  .mtg-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;margin-bottom:12px;line-height:1.2;}
+  .mtg-row{display:flex;align-items:flex-start;gap:10px;font-size:14px;color:var(--muted);margin-bottom:6px;}
+  .mtg-topic{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--muted);line-height:1.5;margin-top:12px;}
+  .mtg-topic strong{color:var(--text);}
+  .status-pill{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:12px;}
+  .pill-active{background:rgba(0,212,170,.1);color:var(--accent);border:1px solid rgba(0,212,170,.25);}
+  .pill-ended{background:rgba(90,98,112,.1);color:var(--muted);border:1px solid var(--border);}
+  .form-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 24px;margin-bottom:20px;}
+  .form-card-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:20px;}
+  .form-group{margin-bottom:16px;}
+  label{display:block;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;}
+  input,select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;color:var(--text);font-size:15px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;}
+  input:focus,select:focus{border-color:var(--accent);}
+  input::placeholder{color:var(--muted);}
+  .sig-tabs{display:flex;gap:8px;margin-bottom:16px;}
+  .sig-tab{flex:1;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:13px;cursor:pointer;text-align:center;transition:all .2s;font-family:'DM Sans',sans-serif;}
+  .sig-tab.active{background:rgba(0,212,170,.08);border-color:var(--accent);color:var(--accent);}
+  .canvas-wrap{position:relative;border:2px dashed var(--border);border-radius:12px;overflow:hidden;background:#fff;touch-action:none;}
+  .canvas-wrap.drawing{border-color:var(--accent);border-style:solid;}
+  #sigCanvas{display:block;width:100%;height:150px;cursor:crosshair;}
+  .canvas-actions{display:flex;gap:8px;margin-top:8px;}
+  .btn-sm{padding:8px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:13px;cursor:pointer;transition:all .2s;}
+  .btn-sm:hover{border-color:var(--accent);color:var(--accent);}
+  .sig-hint{font-size:11px;color:var(--muted);text-align:center;margin-top:6px;}
+  #textSig{width:100%;padding:14px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:22px;font-family:'Dancing Script',cursive;outline:none;transition:border-color .2s;}
+  #textSig:focus{border-color:var(--accent);}
+  .btn-submit{width:100%;padding:16px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:12px;color:#000;font-weight:700;font-size:16px;cursor:pointer;font-family:'Syne',sans-serif;letter-spacing:.5px;transition:opacity .2s,transform .1s;}
+  .btn-submit:hover{opacity:.9;}
+  .btn-submit:active{transform:scale(.98);}
+  .btn-submit:disabled{opacity:.5;cursor:not-allowed;}
+  .err-msg{color:var(--danger);font-size:13px;margin-top:6px;display:none;}
+  .error-page{text-align:center;padding:60px 20px;}
+  .error-page .icon{font-size:60px;margin-bottom:16px;}
+  .error-page h2{font-family:'Syne',sans-serif;font-size:22px;margin-bottom:8px;}
+  .error-page p{font-size:14px;color:var(--muted);}
+  .success-screen{display:none;position:fixed;inset:0;background:var(--bg);z-index:999;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:40px;}
+  .success-screen.show{display:flex;}
+  .success-anim{width:100px;height:100px;border-radius:50%;background:rgba(0,212,170,.1);border:3px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:48px;margin-bottom:24px;animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,212,170,.4)}50%{box-shadow:0 0 0 20px rgba(0,212,170,0)}}
+  .success-title{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:var(--accent);margin-bottom:8px;}
+  .success-name{font-size:18px;margin-bottom:4px;font-weight:500;}
+  .success-time{font-size:13px;color:var(--muted);margin-bottom:32px;}
+  .success-meeting{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 24px;width:100%;max-width:400px;text-align:left;margin-bottom:24px;}
+  .success-meeting-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:8px;}
+  .success-meeting-row{font-size:13px;color:var(--muted);margin-bottom:4px;}
+  .ended-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 24px;text-align:center;}
+  .already-card{background:var(--surface);border:1px solid rgba(0,212,170,.3);border-radius:16px;padding:32px;text-align:center;}
+  .check-icon{width:72px;height:72px;border-radius:50%;background:rgba(0,212,170,.1);border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:32px;}
+  .already-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;margin-bottom:8px;color:var(--accent);}
+  .already-sub{font-size:14px;color:var(--muted);}
+  .loading-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;text-align:center;color:var(--muted);}
+  .spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="page" id="pageContent">
+  <div class="logo">
+    <div class="logo-text">Meet<span>Track</span></div>
+    <div class="logo-sub">Digital Attendance System</div>
+  </div>
+  <div id="mainContent">
+    <div class="loading-card"><div class="spinner"></div>Loading meeting details...</div>
+  </div>
+</div>
+
+<div class="success-screen" id="successScreen">
+  <div class="success-anim">✓</div>
+  <div class="success-title">Attendance Marked!</div>
+  <div class="success-name" id="sName"></div>
+  <div class="success-time" id="sTime"></div>
+  <div class="success-meeting" id="sMeeting"></div>
+  <div style="font-size:13px;color:var(--muted);">Aap ja sakte hain. Dhanyawad! 🙏</div>
+</div>
+
+<script>
+// ============ URL PARAMS ============
+const params = new URLSearchParams(window.location.search);
+const meetingId = params.get('id');
+const mtgTitle = params.get('title') || '';
+const mtgDate  = params.get('date')  || '';
+const mtgTime  = params.get('time')  || '';
+const mtgVenue = params.get('venue') || '';
+const mtgTopic = params.get('topic') || '';
+
+// ============ JSONBIN — reads key+bin from localStorage (same domain as admin) ============
+const JB = {
+  get apiKey(){ return localStorage.getItem('mt_jb_key') || ''; },
+  get binId(){  return localStorage.getItem('mt_jb_bin')  || ''; },
+  get ready(){  return !!this.apiKey && !!this.binId; },
+
+  async read() {
+    const r = await fetch(`https://api.jsonbin.io/v3/b/${this.binId}/latest`, {
+      headers: { 'X-Master-Key': this.apiKey }
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return (await r.json()).record;
+  },
+
+  async write(data) {
+    const r = await fetch(`https://api.jsonbin.io/v3/b/${this.binId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': this.apiKey },
+      body: JSON.stringify(data)
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return true;
+  }
+};
+
+// ============ CANVAS STATE ============
+let canvas, ctx, isDrawing=false, lastX=0, lastY=0, hasDrawn=false, snapshots=[];
+let sigMode = 'draw';
+
+// ============ INIT ============
+window.onload = async () => {
+  if (!meetingId) {
+    render(`<div class="error-page"><div class="icon">🔗</div><h2>Invalid Link</h2><p>Yeh link valid nahi hai. Admin se QR code maangein.</p></div>`);
+    return;
+  }
+
+  // Check already attended (device-level guard)
+  const doneKey = `mt_done_${meetingId}`;
+  const alreadyRaw = localStorage.getItem(doneKey);
+
+  // Try to load meeting status from JSONBin
+  let meetingStatus = 'active';
+  let remoteData = null;
+
+  if (JB.ready) {
+    try {
+      remoteData = await JB.read();
+      const mtg = (remoteData.meetings || []).find(m => m.id === meetingId);
+      if (mtg) meetingStatus = mtg.status;
+    } catch(e) {
+      // fallback — assume active, will fail gracefully at submit
+    }
+  }
+
+  const bannerHtml = buildBanner(meetingStatus);
+
+  if (meetingStatus === 'ended') {
+    render(bannerHtml + `<div class="ended-card"><div style="font-size:48px;margin-bottom:16px;">🔒</div><div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:var(--muted);margin-bottom:8px;">Attendance Closed</div><p style="font-size:14px;color:var(--muted);">Is meeting ki attendance close ho chuki hai.</p></div>`);
+    return;
+  }
+
+  if (alreadyRaw) {
+    const d = JSON.parse(alreadyRaw);
+    render(bannerHtml + `<div class="already-card"><div class="check-icon">✓</div><div class="already-title">Already Marked!</div><div class="already-sub">Aapki attendance pehle se mark ho chuki hai.<br><strong>${esc(d.name)}</strong><br>${new Date(d.timestamp).toLocaleString('en-IN')}</div></div>`);
+    return;
+  }
+
+  render(bannerHtml + buildForm());
+  initCanvas();
+};
+
+function render(html) { document.getElementById('mainContent').innerHTML = html; }
+
+function buildBanner(status) {
+  return `<div class="meeting-banner">
+    <div class="mtg-label">📋 Meeting Details</div>
+    <div class="mtg-title">${esc(mtgTitle)}</div>
+    <div class="mtg-row"><span>📅</span><span>${esc(mtgDate)} at ${esc(mtgTime)}</span></div>
+    <div class="mtg-row"><span>📍</span><span>${esc(mtgVenue)}</span></div>
+    ${mtgTopic ? `<div class="mtg-topic"><strong>Topic:</strong> ${esc(mtgTopic)}</div>` : ''}
+    ${status === 'active'
+      ? '<span class="status-pill pill-active">● Attendance Open</span>'
+      : '<span class="status-pill pill-ended">Attendance Closed</span>'}
+  </div>`;
+}
+
+function buildForm() {
+  return `
+  <div class="form-card">
+    <div class="form-card-title">👤 Your Details</div>
+    <div class="form-group">
+      <label>Full Name *</label>
+      <input type="text" id="f_name" placeholder="Apna poora naam likhein" autocomplete="name">
+      <div class="err-msg" id="e_name">Name required hai</div>
+    </div>
+    <div class="form-group">
+      <label>Designation</label>
+      <input type="text" id="f_desig" placeholder="e.g. Senior Executive, Manager">
+    </div>
+    <div class="form-group">
+      <label>Department</label>
+      <input type="text" id="f_dept" placeholder="e.g. Operations, HR, Finance">
+    </div>
+    <div class="form-group">
+      <label>Employee ID (optional)</label>
+      <input type="text" id="f_empid" placeholder="e.g. MED-1042">
+    </div>
+  </div>
+  <div class="form-card">
+    <div class="form-card-title">✍️ Digital Signature</div>
+    <div class="sig-tabs">
+      <div class="sig-tab active" id="tabDraw" onclick="setSigMode('draw')">🖊 Draw</div>
+      <div class="sig-tab" id="tabText" onclick="setSigMode('text')">⌨️ Type</div>
+    </div>
+    <div id="drawSigArea">
+      <div class="canvas-wrap" id="canvasWrap"><canvas id="sigCanvas"></canvas></div>
+      <div class="canvas-actions">
+        <button class="btn-sm" onclick="clearCanvas()">🗑 Clear</button>
+        <button class="btn-sm" onclick="undoCanvas()">↩ Undo</button>
+      </div>
+      <div class="sig-hint">Upar finger ya mouse se sign karein</div>
+      <div class="err-msg" id="e_drawsig">Signature draw karein</div>
+    </div>
+    <div id="textSigArea" style="display:none;">
+      <input type="text" id="textSig" placeholder="Apna naam likhein">
+      <div class="err-msg" id="e_textsig">Signature type karein</div>
+    </div>
+  </div>
+  <button class="btn-submit" id="submitBtn" onclick="submitAttendance()">✅ Mark My Attendance</button>
+  <div style="text-align:center;font-size:11px;color:var(--muted);margin-top:12px;">Ek baar mark hone ke baad dobara nahi ho sakta</div>`;
+}
+
+// ============ CANVAS ============
+function initCanvas() {
+  canvas = document.getElementById('sigCanvas');
+  if (!canvas) return;
+  ctx = canvas.getContext('2d');
+  resizeCanvas();
+  canvas.addEventListener('mousedown', startDraw);
+  canvas.addEventListener('mousemove', drawMove);
+  canvas.addEventListener('mouseup', endDraw);
+  canvas.addEventListener('mouseleave', endDraw);
+  canvas.addEventListener('touchstart', e=>{ e.preventDefault(); const t=e.touches[0]; startDraw({clientX:t.clientX,clientY:t.clientY}); },{passive:false});
+  canvas.addEventListener('touchmove',  e=>{ e.preventDefault(); const t=e.touches[0]; drawMove({clientX:t.clientX,clientY:t.clientY}); },{passive:false});
+  canvas.addEventListener('touchend', endDraw);
+  window.addEventListener('resize', resizeCanvas);
+}
+
+function resizeCanvas() {
+  if (!canvas) return;
+  const wrap = document.getElementById('canvasWrap');
+  if (!wrap) return;
+  const dpr = window.devicePixelRatio||1;
+  const w = wrap.clientWidth, h = 150;
+  canvas.width = w*dpr; canvas.height = h*dpr;
+  canvas.style.width = w+'px'; canvas.style.height = h+'px';
+  ctx.scale(dpr,dpr);
+  ctx.strokeStyle='#1a1a2e'; ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.lineJoin='round';
+}
+
+function getPos(e){ const r=canvas.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top}; }
+function startDraw(e){ isDrawing=true; const p=getPos(e); lastX=p.x; lastY=p.y; snapshots.push(ctx.getImageData(0,0,canvas.width,canvas.height)); document.getElementById('canvasWrap').classList.add('drawing'); }
+function drawMove(e){ if(!isDrawing)return; const p=getPos(e); ctx.beginPath(); ctx.moveTo(lastX,lastY); ctx.lineTo(p.x,p.y); ctx.stroke(); lastX=p.x; lastY=p.y; hasDrawn=true; }
+function endDraw(){ isDrawing=false; }
+function clearCanvas(){ ctx.clearRect(0,0,canvas.width,canvas.height); hasDrawn=false; snapshots=[]; document.getElementById('canvasWrap')?.classList.remove('drawing'); }
+function undoCanvas(){ if(snapshots.length>0){ ctx.putImageData(snapshots.pop(),0,0); if(!snapshots.length) hasDrawn=false; } }
+
+function setSigMode(mode) {
+  sigMode=mode;
+  document.getElementById('tabDraw').classList.toggle('active',mode==='draw');
+  document.getElementById('tabText').classList.toggle('active',mode==='text');
+  document.getElementById('drawSigArea').style.display = mode==='draw'?'block':'none';
+  document.getElementById('textSigArea').style.display = mode==='text'?'block':'none';
+}
+
+// ============ SUBMIT ============
+async function submitAttendance() {
+  let ok=true, sigData=null, sigType=null;
+
+  const name = document.getElementById('f_name').value.trim();
+  if (!name) { document.getElementById('e_name').style.display='block'; ok=false; }
+  else document.getElementById('e_name').style.display='none';
+
+  if (sigMode==='draw') {
+    if (!hasDrawn) { document.getElementById('e_drawsig').style.display='block'; ok=false; }
+    else { document.getElementById('e_drawsig').style.display='none'; sigData=canvas.toDataURL('image/png'); sigType='draw'; }
+  } else {
+    const t = document.getElementById('textSig').value.trim();
+    if (!t) { document.getElementById('e_textsig').style.display='block'; ok=false; }
+    else { document.getElementById('e_textsig').style.display='none'; sigData=t; sigType='text'; }
+  }
+
+  if (!ok) return;
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled=true; btn.textContent='Saving...';
+
+  const record = {
+    id: 'ATD_'+Date.now(), meetingId, name,
+    designation: document.getElementById('f_desig').value.trim(),
+    department:  document.getElementById('f_dept').value.trim(),
+    empId:       document.getElementById('f_empid').value.trim(),
+    signature: sigData, sigType,
+    timestamp: new Date().toISOString(),
+    device: navigator.userAgent.substring(0,80)
+  };
+
+  // Save to JSONBin
+  if (!JB.ready) {
+    btn.disabled=false; btn.textContent='✅ Mark My Attendance';
+    showErr('❌ System config error. Admin se contact karein.'); return;
+  }
+
+  try {
+    const remote = await JB.read();
+
+    // Double-check not already submitted (server-side guard)
+    const alreadySaved = (remote.attendance||[]).some(a => a.meetingId===meetingId && a.name.toLowerCase()===name.toLowerCase());
+    if (alreadySaved) {
+      localStorage.setItem(`mt_done_${meetingId}`, JSON.stringify({name, timestamp: record.timestamp}));
+      btn.disabled=false;
+      showErr('⚠️ Is naam se attendance pehle se mark ho chuki hai.');
+      return;
+    }
+
+    // Check meeting still active
+    const mtg = (remote.meetings||[]).find(m=>m.id===meetingId);
+    if (mtg && mtg.status==='ended') {
+      btn.disabled=false;
+      showErr('🔒 Attendance window close ho gayi hai.'); return;
+    }
+
+    // Append and save
+    const newAttendance = [...(remote.attendance||[]), record];
+    // Strip draw signatures from remote to save space (keep text sigs)
+    // Actually keep full — admin needs them
+    await JB.write({ meetings: remote.meetings||[], attendance: newAttendance });
+
+    // Mark done on this device
+    localStorage.setItem(`mt_done_${meetingId}`, JSON.stringify({name, timestamp: record.timestamp}));
+
+    showSuccess(record);
+  } catch(e) {
+    btn.disabled=false; btn.textContent='✅ Mark My Attendance';
+    showErr('❌ Network error: ' + e.message + '. Please retry.');
+  }
+}
+
+function showErr(msg) {
+  let el = document.getElementById('submitError');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'submitError';
+    el.style.cssText = 'color:var(--danger);font-size:13px;margin-top:10px;text-align:center;padding:10px;background:rgba(255,71,87,.08);border-radius:8px;border:1px solid rgba(255,71,87,.2);';
+    document.getElementById('submitBtn').after(el);
+  }
+  el.textContent = msg;
+}
+
+function showSuccess(record) {
+  document.getElementById('sName').textContent = record.name;
+  document.getElementById('sTime').textContent = new Date(record.timestamp).toLocaleString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('sMeeting').innerHTML = `
+    <div class="success-meeting-title">${esc(mtgTitle)}</div>
+    <div class="success-meeting-row">📅 ${esc(mtgDate)} at ${esc(mtgTime)}</div>
+    <div class="success-meeting-row">📍 ${esc(mtgVenue)}</div>`;
+  document.getElementById('successScreen').classList.add('show');
+}
+
+function esc(s){ if(!s)return''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>

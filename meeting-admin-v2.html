@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeetTrack — Admin Portal v2.0</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #181c24;
+    --border: #1e2430;
+    --accent: #00d4aa;
+    --accent2: #0099ff;
+    --danger: #ff4757;
+    --warn: #ffa502;
+    --success: #2ed573;
+    --text: #e8eaf0;
+    --muted: #5a6270;
+    --card-glow: 0 0 40px rgba(0,212,170,0.04);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* LOADING STATE */
+  .loader {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,12,16,0.8);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+  }
+  .loader.show { display: flex; }
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top: 3px solid var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loader-text { margin-top: 16px; color: var(--muted); }
+
+  /* LOGIN SCREEN */
+  #loginScreen {
+    position: fixed; inset:0;
+    background: var(--bg);
+    display: flex; align-items:center; justify-content:center;
+    z-index:1000;
+  }
+  #loginScreen.hidden { display: none; }
+  
+  .login-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 40px;
+    width: 380px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,212,170,0.05);
+  }
+  .login-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 24px; letter-spacing:-0.5px;
+    margin-bottom: 4px;
+  }
+  .login-logo span { color: var(--accent); }
+  .login-sub { font-size: 13px; color: var(--muted); margin-bottom: 32px; }
+  .pin-label { font-size: 12px; text-transform:uppercase; letter-spacing:1px; color: var(--muted); margin-bottom: 12px; }
+  .pin-input {
+    display: flex; gap: 8px; justify-content: center; margin-bottom: 20px;
+  }
+  .pin-input input {
+    width: 50px; height: 50px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    text-align: center;
+    font-size: 24px;
+    color: var(--text);
+    font-weight: 700;
+    transition: border-color .2s;
+  }
+  .pin-input input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,212,170,0.1);
+  }
+  .btn-login {
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    padding: 12px 24px;
+    color: var(--bg); font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all .2s;
+    width: 100%;
+    margin-bottom: 16px;
+  }
+  .btn-login:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,212,170,0.2); }
+  .btn-login:active { transform: translateY(0); }
+  .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
+  
+  .login-err {
+    color: var(--danger);
+    font-size: 12px;
+    margin-bottom: 12px;
+    display: none;
+    animation: shake 0.3s;
+  }
+  @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+  .login-err.show { display: block; }
+  
+  .login-attempts { font-size: 11px; color: var(--muted); margin-top: 8px; }
+  .login-lockout { color: var(--warn); font-weight: 600; }
+
+  /* MAIN APP */
+  #app { display: none; }
+  #app.show { display: flex; flex-direction: column; min-height: 100vh; }
+
+  nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 32px;
+    display: flex; justify-content: space-between; align-items: center;
+    position: sticky; top:0; z-index:100;
+  }
+  .nav-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 20px; letter-spacing:-0.5px;
+  }
+  .nav-logo span { color: var(--accent); }
+  .nav-right { display:flex; align-items:center; gap:16px; }
+  .nav-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px; color: var(--muted);
+  }
+  .btn-logout {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 16px;
+    color: var(--muted); font-size: 13px;
+    cursor: pointer; transition: all .2s;
+  }
+  .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* TABS */
+  .tabs {
+    display: flex; gap: 4px;
+    padding: 20px 32px 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 10px 20px;
+    font-size: 14px; font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all .2s;
+    font-family: 'DM Sans', sans-serif;
+    white-space: nowrap;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  /* CONTENT */
+  .content { padding: 32px; max-width: 1200px; margin: 0 auto; width: 100%; }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+
+  /* SECTION HEADER */
+  .sec-header { margin-bottom: 28px; }
+  .sec-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px; font-weight: 800; letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+  .sec-sub { color: var(--muted); font-size: 14px; }
+
+  /* FORMS */
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 24px;
+    margin-bottom: 20px;
+  }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  .form-group { margin-bottom: 16px; }
+  label {
+    display: block;
+    font-size: 13px; font-weight: 500;
+    margin-bottom: 8px;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  input, textarea, select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    transition: border-color .2s;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,212,170,0.1);
+  }
+  textarea {
+    resize: vertical;
+    min-height: 80px;
+  }
+  .form-actions {
+    display: flex; gap: 10px; margin-top: 20px;
+  }
+
+  /* BUTTONS */
+  .btn-primary, .btn-secondary, .btn-danger {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 10px;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: var(--bg);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,212,170,0.2); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  
+  .btn-secondary {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  
+  .btn-danger {
+    background: rgba(255,71,87,0.1);
+    border: 1px solid var(--danger);
+    color: var(--danger);
+  }
+  .btn-danger:hover { background: rgba(255,71,87,0.2); }
+  
+  .btn-icon {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    color: var(--text);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-icon:hover { border-color: var(--accent); }
+
+  /* STATS */
+  .stats-row { display:grid; grid-template-columns: repeat(4,1fr); gap:16px; margin-bottom:28px; }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+  }
+  .stat-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 36px; font-weight:800;
+    color: var(--accent);
+    line-height:1;
+    margin-bottom: 4px;
+  }
+  .stat-label { font-size: 13px; color: var(--muted); }
+
+  /* MEETINGS GRID */
+  .meetings-grid { display: grid; gap: 16px; }
+  .meeting-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: center;
+    transition: border-color .2s;
+  }
+  .meeting-card:hover { border-color: rgba(0,212,170,0.3); }
+  .meeting-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 17px; font-weight: 700;
+  }
+  .meeting-meta { display:flex; gap:12px; margin-top:8px; flex-wrap:wrap; }
+  .meta-chip {
+    display:inline-block;
+    font-size: 11px; color: var(--muted);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+  }
+  .status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px; font-weight:600;
+    text-transform: uppercase; letter-spacing:.5px;
+  }
+  .status-active { background: rgba(0,212,170,.12); color: var(--accent); border:1px solid rgba(0,212,170,.2); }
+  .status-ended { background: rgba(90,98,112,.12); color: var(--muted); border:1px solid var(--border); }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align:center; padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-icon { font-size:40px; margin-bottom:12px; }
+  .empty-text { font-size: 15px; }
+
+  /* TABLE */
+  table { width:100%; border-collapse:collapse; }
+  thead th {
+    background: var(--surface);
+    padding: 12px 16px;
+    text-align:left;
+    font-size: 12px; color: var(--muted);
+    text-transform: uppercase; letter-spacing:.7px;
+  }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background .15s;
+  }
+  tbody tr:hover { background: rgba(255,255,255,.02); }
+  tbody td {
+    padding: 14px 16px;
+    font-size: 14px;
+  }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset:0;
+    background: rgba(10,12,16,0.8);
+    z-index: 1100;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px;
+    width: 480px;
+    max-height: 80vh;
+    overflow-y: auto;
+    text-align: center;
+    position: relative;
+  }
+  .modal-close {
+    position: absolute; top:16px; right:16px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; width:32px; height:32px;
+    color: var(--muted); cursor:pointer; font-size:18px;
+    display:flex; align-items:center; justify-content:center;
+    transition: all .2s;
+  }
+  .modal-close:hover { border-color: var(--danger); color: var(--danger); }
+  
+  .modal-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px; font-weight:700; margin-bottom:4px;
+  }
+  .modal-sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+
+  /* QR CONTAINER */
+  .qr-container {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    display: inline-block;
+    margin-bottom: 20px;
+  }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom:24px; right:24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: 16px 20px;
+    font-size: 13px;
+    max-width: 300px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    z-index: 2000;
+    display: none;
+    animation: slideIn 0.3s ease;
+  }
+  .toast.show { display: block; }
+  .toast.error { border-left-color: var(--danger); }
+  .toast.success { border-left-color: var(--success); }
+  @keyframes slideIn { from { transform: translateX(400px); } to { transform: translateX(0); } }
+
+  /* SEARCH & FILTER */
+  .search-box, .meeting-select-filter {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 16px;
+    color: var(--text); 
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .search-box:focus, .meeting-select-filter:focus { border-color: var(--accent); }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: repeat(2,1fr); }
+    .meeting-card { grid-template-columns: 1fr; }
+    .modal { width: 90%; padding: 24px; }
+    .login-box { width: 90%; }
+    nav { flex-direction: column; gap: 16px; }
+    .tabs { overflow-x: auto; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div class="loader" id="loader">
+  <div class="spinner"></div>
+  <div class="loader-text">Loading...</div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">Meet<span>Track</span></div>
+    <div class="login-sub">Admin Portal — Secure Login</div>
+    <div class="pin-label">Enter 4-Digit PIN</div>
+    <div class="pin-input">
+      <input type="password" maxlength="1" id="p1" inputmode="numeric" autocomplete="off">
+      <input type="password" maxlength="1" id="p2" inputmode="numeric" autocomplete="off">
+      <input type="password" maxlength="1" id="p3" inputmode="numeric" autocomplete="off">
+      <input type="password" maxlength="1" id="p4" inputmode="numeric" autocomplete="off">
+    </div>
+    <button class="btn-login" id="loginBtn" onclick="doLogin()">UNLOCK</button>
+    <div class="login-err" id="loginErr"></div>
+    <div class="login-attempts" id="loginAttempts"></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <nav>
+    <div>
+      <div class="nav-logo">Meet<span>Track</span> <span style="font-size:12px;color:var(--muted);font-weight:400;font-family:'DM Sans'">Admin</span></div>
+    </div>
+    <div class="nav-right">
+      <div class="nav-badge" id="navDate"></div>
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('dashboard')">📊 Dashboard</div>
+    <div class="tab" onclick="switchTab('create')">➕ New Meeting</div>
+    <div class="tab" onclick="switchTab('meetings')">📋 All Meetings</div>
+    <div class="tab" onclick="switchTab('attendance')">✅ Attendance</div>
+    <div class="tab" onclick="switchTab('settings')">⚙️ Settings</div>
+  </div>
+
+  <div class="content">
+    <!-- DASHBOARD -->
+    <div class="tab-panel active" id="tab-dashboard">
+      <div class="sec-header">
+        <div class="sec-title">Dashboard</div>
+        <div class="sec-sub">Real-time overview</div>
+      </div>
+      <div class="stats-row" id="statsRow"></div>
+      <div class="sec-title" style="font-size:18px;margin-bottom:16px;">Recent Meetings</div>
+      <div id="dashMeetings"></div>
+    </div>
+
+    <!-- CREATE MEETING -->
+    <div class="tab-panel" id="tab-create">
+      <div class="sec-header">
+        <div class="sec-title">Create New Meeting</div>
+        <div class="sec-sub">Generate QR code automatically</div>
+      </div>
+      <div class="form-card">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Meeting Title *</label>
+            <input type="text" id="f_title" placeholder="e.g. Monthly Operations Review" maxlength="100">
+          </div>
+          <div class="form-group full">
+            <label>Topic / Agenda *</label>
+            <textarea id="f_topic" placeholder="Describe meeting topic..." maxlength="2000"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Date *</label>
+            <input type="date" id="f_date">
+          </div>
+          <div class="form-group">
+            <label>Time *</label>
+            <input type="time" id="f_time">
+          </div>
+          <div class="form-group">
+            <label>Venue / Location *</label>
+            <input type="text" id="f_venue" placeholder="e.g. Conference Room A" maxlength="150">
+          </div>
+          <div class="form-group">
+            <label>Organizer</label>
+            <input type="text" id="f_organizer" placeholder="Department or name" maxlength="100">
+          </div>
+          <div class="form-group">
+            <label>Department</label>
+            <input type="text" id="f_dept" placeholder="e.g. Operations" maxlength="100">
+          </div>
+          <div class="form-group">
+            <label>Expected Attendees</label>
+            <input type="number" id="f_expected" placeholder="e.g. 25" min="0" max="10000">
+          </div>
+          <div class="form-group">
+            <label>Attendance Window (minutes)</label>
+            <input type="number" id="f_window" placeholder="e.g. 60" min="5" max="480" value="60">
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="f_status">
+              <option value="active">Active (QR Scannable)</option>
+              <option value="ended">Ended</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-secondary" onclick="clearForm()">Clear</button>
+          <button class="btn-primary" onclick="createMeeting()">🚀 Create & Generate QR</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MEETINGS -->
+    <div class="tab-panel" id="tab-meetings">
+      <div class="sec-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+        <div>
+          <div class="sec-title">All Meetings</div>
+          <div class="sec-sub">Manage and track</div>
+        </div>
+        <button class="btn-primary" onclick="switchTab('create')">+ New Meeting</button>
+      </div>
+      <div class="meetings-grid" id="meetingsList"></div>
+    </div>
+
+    <!-- ATTENDANCE -->
+    <div class="tab-panel" id="tab-attendance">
+      <div class="sec-header">
+        <div class="sec-title">Attendance Records</div>
+        <div class="sec-sub">Filter, search, export</div>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+        <select class="meeting-select-filter" id="attendMeetingFilter" onchange="renderAttendance()">
+          <option value="">All Meetings</option>
+        </select>
+        <input class="search-box" type="text" id="attendSearch" placeholder="🔍 Search by name..." oninput="renderAttendance()">
+        <button class="btn-secondary" onclick="exportCSV()">⬇ Export CSV</button>
+        <button class="btn-secondary" onclick="exportJSON()">⬇ Export JSON</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Designation</th>
+              <th>Department</th>
+              <th>Meeting</th>
+              <th>Date & Time</th>
+              <th>Signature</th>
+            </tr>
+          </thead>
+          <tbody id="attendBody"></tbody>
+        </table>
+      </div>
+      <div id="attendEmpty" class="empty-state" style="display:none;">
+        <div class="empty-icon">📭</div>
+        <div class="empty-text">No attendance records yet</div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="tab-panel" id="tab-settings">
+      <div class="sec-header">
+        <div class="sec-title">Settings</div>
+        <div class="sec-sub">Configuration & security</div>
+      </div>
+
+      <div class="form-card" style="max-width:540px;">
+        <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:16px;">🌐 Site Base URL</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Configure your hosted domain for QR code generation</p>
+        <div class="form-group">
+          <label>Base URL</label>
+          <input type="url" id="s_baseurl" placeholder="https://yoursite.com" autocomplete="off">
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--muted);word-break:break-all;margin-bottom:16px;" id="s_urlPreview">
+          URL preview...
+        </div>
+        <button class="btn-primary" onclick="saveBaseUrl()">💾 Save URL</button>
+        <button class="btn-secondary" onclick="clearBaseUrl()" style="margin-left:10px;">Reset</button>
+      </div>
+
+      <div class="form-card" style="max-width:540px;margin-top:20px;">
+        <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:16px;">🔐 Change PIN</div>
+        <div class="form-group">
+          <label>Current PIN</label>
+          <input type="password" id="s_current" placeholder="Enter current PIN" maxlength="4">
+        </div>
+        <div class="form-group">
+          <label>New PIN (4 digits)</label>
+          <input type="password" id="s_new" placeholder="New 4-digit PIN" maxlength="4">
+        </div>
+        <div class="form-group">
+          <label>Confirm New PIN</label>
+          <input type="password" id="s_confirm" placeholder="Confirm PIN" maxlength="4">
+        </div>
+        <button class="btn-primary" onclick="changePin()">Update PIN</button>
+      </div>
+
+      <div class="form-card" style="max-width:540px;margin-top:20px;">
+        <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:16px;">💾 Data Management</div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn-secondary" onclick="createBackup()">⬇ Download Backup</button>
+          <button class="btn-secondary" onclick="restoreBackup()">⬆ Restore Backup</button>
+        </div>
+      </div>
+
+      <div class="form-card" style="max-width:540px;margin-top:20px;border-left: 3px solid var(--danger);">
+        <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:16px;color:var(--danger);">⚠️ Danger Zone</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Permanently delete all data</p>
+        <button class="btn-danger" onclick="clearAllData()">🗑 Clear All Data</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- QR MODAL -->
+<div class="modal-overlay" id="qrModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('qrModal')">×</button>
+    <div class="modal-title" id="qrModalTitle">Meeting QR Code</div>
+    <div class="modal-sub">Staff ko ye QR scan karwayein attendance ke liye</div>
+    <div class="qr-container" id="qrContainer"></div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--muted);word-break:break-all;margin-bottom:20px;" id="qrUrlBox"></div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button class="btn-secondary" onclick="printQR()">🖨 Print</button>
+      <button class="btn-primary" onclick="downloadQR()">⬇ Download</button>
+    </div>
+  </div>
+</div>
+
+<!-- SIG VIEW MODAL -->
+<div class="modal-overlay" id="sigViewModal">
+  <div class="modal" style="width:300px;">
+    <button class="modal-close" onclick="closeModal('sigViewModal')">×</button>
+    <div class="modal-title">Digital Signature</div>
+    <img id="sigViewImg" src="" alt="Signature" style="width:100%;margin:20px 0;border:1px solid var(--border);border-radius:8px;">
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============ CONFIG ============
+const API_URL = localStorage.getItem('api_url') || 'http://localhost:3000/api';
+const DEFAULT_PIN = '1234';
+let loginAttempts = 0;
+let loginLocked = false;
+let lastLoginAttempt = 0;
+
+// ============ STORAGE HELPERS ============
+const DB = {
+  get: (k) => { 
+    try { 
+      return JSON.parse(localStorage.getItem(k)) || []; 
+    } catch { 
+      return []; 
+    } 
+  },
+  set: (k, v) => {
+    try {
+      localStorage.setItem(k, JSON.stringify(v));
+      return true;
+    } catch (e) {
+      if (e.name === 'QuotaExceededError') {
+        showToast('❌ Storage limit exceeded. Export and clear old data.', true);
+        return false;
+      }
+      showToast('❌ Storage error', true);
+      return false;
+    }
+  },
+  getStr: (k, d = '') => {
+    try {
+      return localStorage.getItem(k) || d;
+    } catch {
+      return d;
+    }
+  },
+  remove: (k) => {
+    try {
+      localStorage.removeItem(k);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+};
+
+// ============ AUTH WITH RATE LIMITING ============
+function getPin() { 
+  return DB.getStr('mt_pin', DEFAULT_PIN); 
+}
+
+function doLogin() {
+  // Check if locked out
+  const now = Date.now();
+  if (loginLocked) {
+    const elapsed = now - lastLoginAttempt;
+    if (elapsed < 5 * 60 * 1000) {
+      const remaining = Math.ceil((5 * 60 * 1000 - elapsed) / 1000);
+      showToast(`❌ Too many failed attempts. Wait ${remaining}s.`, true);
+      return;
+    }
+    loginLocked = false;
+    loginAttempts = 0;
+  }
+
+  const pin = ['p1','p2','p3','p4'].map(id => document.getElementById(id).value).join('');
+  
+  if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+    showToast('❌ PIN must be 4 digits', true);
+    return;
+  }
+
+  if (pin === getPin()) {
+    // Successful login
+    loginAttempts = 0;
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('app').classList.add('show');
+    initApp();
+    
+    // Session timeout
+    clearTimeout(window.sessionTimeout);
+    window.sessionTimeout = setTimeout(() => {
+      logout();
+      showToast('⏱ Session expired for security', true);
+    }, 30 * 60 * 1000);
+  } else {
+    // Failed login
+    loginAttempts++;
+    lastLoginAttempt = now;
+    
+    if (loginAttempts >= 5) {
+      loginLocked = true;
+      document.getElementById('loginErr').textContent = '❌ Account locked for 5 minutes';
+      document.getElementById('loginAttempts').innerHTML = '<span class="login-lockout">Locked until next 5 min</span>';
+      showToast('❌ Account locked (5 min)', true);
+    } else {
+      const remaining = 5 - loginAttempts;
+      document.getElementById('loginErr').textContent = `❌ Wrong PIN (${remaining} attempts left)`;
+      document.getElementById('loginAttempts').textContent = `Attempts remaining: ${remaining}`;
+    }
+    
+    document.getElementById('loginErr').classList.add('show');
+    ['p1','p2','p3','p4'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('p1').focus();
+  }
+}
+
+function logout() {
+  loginAttempts = 0;
+  loginLocked = false;
+  clearTimeout(window.sessionTimeout);
+  document.getElementById('app').classList.remove('show');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  ['p1','p2','p3','p4'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('loginErr').classList.remove('show');
+  document.getElementById('loginAttempts').textContent = '';
+}
+
+// PIN input auto-advance
+['p1','p2','p3','p4'].forEach((id, i) => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    if (el.value.length === 1 && i < 3) {
+      document.getElementById(['p1','p2','p3','p4'][i+1]).focus();
+    }
+    if (i === 3 && el.value.length === 1) {
+      doLogin();
+    }
+  });
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace' && el.value === '' && i > 0) {
+      document.getElementById(['p1','p2','p3','p4'][i-1]).focus();
+    }
+  });
+});
+
+// Enter key on login
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !document.getElementById('loginScreen').classList.contains('hidden')) {
+    doLogin();
+  }
+});
+
+// ============ INPUT VALIDATION ============
+function sanitizeInput(str, maxLen = 100) {
+  if (!str || typeof str !== 'string') return '';
+  return str
+    .trim()
+    .replace(/[<>]/g, '')
+    .substring(0, maxLen);
+}
+
+function validateInput(value, type = 'text', maxLen = 100) {
+  if (!value || typeof value !== 'string') return { valid: false, error: 'Invalid input' };
+  
+  value = value.trim();
+  
+  if (value.length === 0) return { valid: false, error: 'Cannot be empty' };
+  if (value.length > maxLen) return { valid: false, error: `Max ${maxLen} characters` };
+  
+  switch (type) {
+    case 'title':
+      if (!/^[a-zA-Z0-9\s\-,./&()™®]+$/.test(value)) 
+        return { valid: false, error: 'Invalid characters' };
+      break;
+  }
+  
+  return { valid: true, error: null };
+}
+
+// ============ MEETINGS ============
+function getMeetings() { return DB.get('mt_meetings'); }
+function saveMeetings(m) { return DB.set('mt_meetings', m); }
+function getAttendance() { return DB.get('mt_attendance'); }
+
+function createMeeting() {
+  const titleVal = validateInput(document.getElementById('f_title').value, 'title', 100);
+  if (!titleVal.valid) { showToast('❌ ' + titleVal.error, true); return; }
+  const title = sanitizeInput(document.getElementById('f_title').value, 100);
+
+  const topicVal = validateInput(document.getElementById('f_topic').value, 'text', 2000);
+  if (!topicVal.valid) { showToast('❌ ' + topicVal.error, true); return; }
+  const topic = sanitizeInput(document.getElementById('f_topic').value, 2000);
+
+  const date = document.getElementById('f_date').value;
+  const time = document.getElementById('f_time').value;
+  if (!date || !time) { showToast('❌ Date and time required', true); return; }
+
+  const venueVal = validateInput(document.getElementById('f_venue').value, 'title', 150);
+  if (!venueVal.valid) { showToast('❌ ' + venueVal.error, true); return; }
+  const venue = sanitizeInput(document.getElementById('f_venue').value, 150);
+
+  const organizer = sanitizeInput(document.getElementById('f_organizer').value, 100);
+  const dept = sanitizeInput(document.getElementById('f_dept').value, 100);
+  
+  let expected = parseInt(document.getElementById('f_expected').value) || 0;
+  if (expected < 0 || expected > 10000) { 
+    showToast('❌ Expected must be 0-10000', true); 
+    return; 
+  }
+
+  let window_min = parseInt(document.getElementById('f_window').value) || 60;
+  if (window_min < 5 || window_min > 480) {
+    showToast('❌ Window must be 5-480 min', true);
+    return;
+  }
+
+  const id = 'MTG_' + Date.now();
+  const meeting = {
+    id, title, topic, date, time, venue,
+    organizer, dept, expected, window: window_min, 
+    status: document.getElementById('f_status').value,
+    createdAt: new Date().toISOString()
+  };
+  
+  const meetings = getMeetings();
+  meetings.unshift(meeting);
+  if (!saveMeetings(meetings)) return;
+  
+  showToast('✅ Meeting created!');
+  clearForm();
+  showQR(meeting);
+}
+
+function clearForm() {
+  ['f_title','f_topic','f_venue','f_organizer','f_dept','f_expected'].forEach(id => 
+    document.getElementById(id).value = '');
+  document.getElementById('f_date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('f_time').value = '';
+  document.getElementById('f_window').value = '60';
+  document.getElementById('f_status').value = 'active';
+}
+
+function deleteMeeting(id) {
+  if (!confirm('Delete this meeting? Attendance records will also be removed.')) return;
+  let m = getMeetings().filter(x => x.id !== id);
+  saveMeetings(m);
+  let a = getAttendance().filter(x => x.meetingId !== id);
+  DB.set('mt_attendance', a);
+  renderMeetings();
+  renderDashboard();
+  showToast('🗑 Meeting deleted');
+}
+
+function toggleStatus(id) {
+  let m = getMeetings();
+  const idx = m.findIndex(x => x.id === id);
+  if (idx < 0) return;
+  m[idx].status = m[idx].status === 'active' ? 'ended' : 'active';
+  saveMeetings(m);
+  renderMeetings();
+  renderDashboard();
+  showToast(m[idx].status === 'active' ? '✅ Activated' : '🔒 Ended');
+}
+
+// ============ QR CODE ============
+let currentQRMeeting = null;
+
+function buildAttendeeURL(meeting) {
+  const savedBase = DB.getStr('mt_base_url', '');
+  let base;
+  if (savedBase) {
+    base = savedBase.replace(/\/+$/, '') + '/';
+  } else {
+    base = window.location.href.replace(/[?#].*$/, '').replace(/\/[^/]*$/, '/');
+  }
+  const p = new URLSearchParams({
+    id: meeting.id,
+    title: meeting.title,
+    date: meeting.date,
+    time: meeting.time,
+    venue: meeting.venue,
+    topic: meeting.topic
+  });
+  return `${base}meeting-attend.html?${p.toString()}`;
+}
+
+function showQR(meeting) {
+  currentQRMeeting = meeting;
+  document.getElementById('qrModalTitle').textContent = meeting.title;
+  document.getElementById('qrContainer').innerHTML = '';
+  const url = buildAttendeeURL(meeting);
+  document.getElementById('qrUrlBox').textContent = url;
+  new QRCode(document.getElementById('qrContainer'), {
+    text: url, width: 220, height: 220,
+    colorDark: '#000000', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+  document.getElementById('qrModal').classList.add('show');
+}
+
+function downloadQR() {
+  const canvas = document.querySelector('#qrContainer canvas');
+  if (!canvas) return;
+  const link = document.createElement('a');
+  link.download = `QR_${currentQRMeeting.title.replace(/\s/g,'_')}.png`;
+  link.href = canvas.toDataURL();
+  link.click();
+  showToast('✅ QR Downloaded');
+}
+
+function printQR() {
+  const canvas = document.querySelector('#qrContainer canvas');
+  if (!canvas) return;
+  const img = canvas.toDataURL();
+  const w = window.open('');
+  w.document.write(`<html><body style="text-align:center;font-family:sans-serif;padding:20px;">
+    <h2>${sanitizeInput(currentQRMeeting.title)}</h2>
+    <p>${currentQRMeeting.date} ${currentQRMeeting.time} | ${sanitizeInput(currentQRMeeting.venue)}</p>
+    <img src="${img}" style="width:300px;">
+    <p style="font-size:12px;color:#666;margin-top:20px;">${sanitizeInput(currentQRMeeting.topic)}</p>
+    <script>window.onload=()=>{window.print();window.close();}<\/script>
+  </body></html>`);
+}
+
+function closeModal(id) { 
+  document.getElementById(id).classList.remove('show');
+}
+
+// ============ RENDER ============
+function renderDashboard() {
+  const meetings = getMeetings();
+  const attendance = getAttendance();
+  const activeMtg = meetings.filter(m => m.status === 'active').length;
+  const totalAtd = attendance.length;
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayAtd = attendance.filter(a => a.timestamp && a.timestamp.startsWith(todayStr)).length;
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card"><div class="stat-num">${meetings.length}</div><div class="stat-label">Total Meetings</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--accent2)">${activeMtg}</div><div class="stat-label">Active Now</div></div>
+    <div class="stat-card"><div class="stat-num">${totalAtd}</div><div class="stat-label">Total Attendance</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--warn)">${todayAtd}</div><div class="stat-label">Today's Attendance</div></div>
+  `;
+
+  const recent = meetings.slice(0, 3);
+  if (!recent.length) {
+    document.getElementById('dashMeetings').innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-text">No meetings yet</div></div>`;
+    return;
+  }
+  
+  document.getElementById('dashMeetings').innerHTML = renderMeetingCards(recent, attendance);
+}
+
+function renderMeetings() {
+  const meetings = getMeetings();
+  const attendance = getAttendance();
+  if (!meetings.length) {
+    document.getElementById('meetingsList').innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-text">No meetings yet. <a href="#" onclick="switchTab('create')" style="color:var(--accent)">Create one</a></div></div>`;
+    return;
+  }
+  document.getElementById('meetingsList').innerHTML = renderMeetingCards(meetings, attendance, true);
+}
+
+function renderMeetingCards(meetings, attendance, showDelete=false) {
+  return meetings.map(m => {
+    const count = attendance.filter(a => a.meetingId === m.id).length;
+    const statusBadge = m.status === 'active'
+      ? '<span class="status-badge status-active">● Active</span>'
+      : '<span class="status-badge status-ended">Ended</span>';
+    
+    return `
+      <div class="meeting-card">
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+            <div class="meeting-name">${sanitizeInput(m.title)}</div>
+            ${statusBadge}
+          </div>
+          <div style="color:var(--muted);font-size:13px;margin-bottom:8px;">${sanitizeInput(m.topic.substring(0,100))}</div>
+          <div class="meeting-meta">
+            <span class="meta-chip">📅 ${m.date}</span>
+            <span class="meta-chip">🕒 ${m.time}</span>
+            <span class="meta-chip">📍 ${sanitizeInput(m.venue.substring(0,30))}</span>
+            ${m.dept ? `<span class="meta-chip">🏢 ${sanitizeInput(m.dept)}</span>` : ''}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;text-align:right;">
+          <div>
+            <div style="font-size:18px;font-weight:700;color:var(--accent);">${count}</div>
+            <div style="font-size:12px;color:var(--muted);">${m.expected ? `of ${m.expected}` : 'attended'}</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-icon" onclick="showQR(JSON.parse('${sanitizeInput(JSON.stringify(m))}'))">📲</button>
+            <button class="btn-icon" onclick="toggleStatus('${m.id}')">${m.status === 'active' ? '🔒' : '✅'}</button>
+            ${showDelete ? `<button class="btn-icon" style="color:var(--danger);border-color:var(--danger);" onclick="deleteMeeting('${m.id}')">🗑</button>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function populateAttendanceFilter() {
+  const sel = document.getElementById('attendMeetingFilter');
+  const cur = sel.value;
+  const meetings = getMeetings();
+  sel.innerHTML = '<option value="">All Meetings</option>' + meetings.map(m =>
+    `<option value="${m.id}" ${m.id===cur?'selected':''}>${sanitizeInput(m.title)} (${m.date})</option>`
+  ).join('');
+}
+
+function renderAttendance() {
+  const attendance = getAttendance();
+  const filterMtg = document.getElementById('attendMeetingFilter').value;
+  const search = document.getElementById('attendSearch').value.toLowerCase();
+  const meetings = getMeetings();
+
+  let filtered = attendance;
+  if (filterMtg) filtered = filtered.filter(a => a.meetingId === filterMtg);
+  if (search) filtered = filtered.filter(a => a.name.toLowerCase().includes(search) || (a.designation||'').toLowerCase().includes(search));
+
+  filtered.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  const tbody = document.getElementById('attendBody');
+  const empty = document.getElementById('attendEmpty');
+
+  if (!filtered.length) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = filtered.map((a, i) => {
+    const mtg = meetings.find(m => m.id === a.meetingId);
+    const sigCell = a.sigType === 'draw' && a.signature
+      ? `<span style="cursor:pointer;color:var(--accent);" onclick="document.getElementById('sigViewImg').src='${a.signature}';document.getElementById('sigViewModal').classList.add('show');">✍️ View</span>`
+      : a.sigType === 'text'
+        ? `<span style="background:var(--surface2);padding:4px 8px;border-radius:4px;font-size:11px;">✍️ ${sanitizeInput(a.signature, 20)}</span>`
+        : '—';
+    
+    return `
+      <tr>
+        <td style="color:var(--muted);font-size:12px">${i+1}</td>
+        <td><strong>${sanitizeInput(a.name)}</strong></td>
+        <td>${sanitizeInput(a.designation||'—', 30)}</td>
+        <td>${sanitizeInput(a.department||'—', 30)}</td>
+        <td style="font-size:12px;color:var(--muted)">${mtg ? sanitizeInput(mtg.title, 25) : a.meetingId}</td>
+        <td style="font-size:12px">${a.timestamp ? new Date(a.timestamp).toLocaleString('en-IN') : '—'}</td>
+        <td>${sigCell}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ============ EXPORT ============
+function exportCSV() {
+  const attendance = getAttendance();
+  const meetings = getMeetings();
+  const filterMtg = document.getElementById('attendMeetingFilter').value;
+  let data = filterMtg ? attendance.filter(a => a.meetingId === filterMtg) : attendance;
+  
+  if (!data.length) { showToast('No data to export', true); return; }
+
+  const header = ['#','Name','Designation','Department','Meeting Title','Meeting Date','Venue','Marked At'];
+  const rows = data.map((a, i) => {
+    const mtg = meetings.find(m => m.id === a.meetingId);
+    return [i+1, a.name, a.designation||'', a.department||'', mtg?mtg.title:'', mtg?mtg.date:'', mtg?mtg.venue:'', a.timestamp?new Date(a.timestamp).toLocaleString('en-IN'):'']
+      .map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+  });
+  
+  download([header.join(','), ...rows].join('\n'), 'MeetTrack_Attendance.csv', 'text/csv');
+  showToast('✅ CSV exported!');
+}
+
+function exportJSON() {
+  const attendance = getAttendance();
+  const filterMtg = document.getElementById('attendMeetingFilter').value;
+  let data = filterMtg ? attendance.filter(a => a.meetingId === filterMtg) : attendance;
+  
+  if (!data.length) { showToast('No data to export', true); return; }
+  
+  const clean = data.map(a => { const c = {...a}; delete c.signature; return c; });
+  download(JSON.stringify(clean, null, 2), 'MeetTrack_Attendance.json', 'application/json');
+  showToast('✅ JSON exported!');
+}
+
+function download(content, filename, type) {
+  const blob = new Blob([content], {type});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ============ BACKUP ============
+function createBackup() {
+  const meetings = getMeetings();
+  const attendance = getAttendance();
+  
+  if (!meetings.length && !attendance.length) {
+    showToast('❌ No data to backup', true);
+    return;
+  }
+
+  const backup = {
+    version: '2.0',
+    exportDate: new Date().toISOString(),
+    meetings: meetings,
+    attendance: attendance
+  };
+
+  const json = JSON.stringify(backup, null, 2);
+  const filename = `meettrack_backup_${new Date().toISOString().split('T')[0]}.json`;
+  download(json, filename, 'application/json');
+  showToast('✅ Backup downloaded!');
+}
+
+function restoreBackup() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const backup = JSON.parse(event.target.result);
+        
+        if (!backup.version || !backup.meetings || !backup.attendance) {
+          showToast('❌ Invalid backup file', true);
+          return;
+        }
+
+        if (!confirm('⚠️ This will overwrite all data. Continue?')) return;
+
+        DB.set('mt_meetings', backup.meetings || []);
+        DB.set('mt_attendance', backup.attendance || []);
+        
+        renderDashboard();
+        renderMeetings();
+        renderAttendance();
+        
+        showToast('✅ Backup restored!');
+      } catch (err) {
+        showToast('❌ Failed to restore', true);
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+// ============ SETTINGS ============
+function initSettings() {
+  const saved = DB.getStr('mt_base_url', '');
+  document.getElementById('s_baseurl').value = saved;
+  updateUrlPreview();
+}
+
+function updateUrlPreview() {
+  const val = document.getElementById('s_baseurl').value.trim();
+  const base = val ? val.replace(/\/+$/,'') + '/' : (window.location.href.replace(/[?#].*$/, '').replace(/\/[^/]*$/, '/'));
+  document.getElementById('s_urlPreview').textContent = '📲 ' + base + 'meeting-attend.html?id=MTG_xxx';
+}
+
+function saveBaseUrl() {
+  const val = document.getElementById('s_baseurl').value.trim();
+  if (val && !val.startsWith('http')) {
+    showToast('❌ URL must start with http:// or https://', true); 
+    return;
+  }
+  DB.set('mt_base_url', val);
+  updateUrlPreview();
+  showToast('✅ Base URL saved!');
+}
+
+function clearBaseUrl() {
+  DB.remove('mt_base_url');
+  document.getElementById('s_baseurl').value = '';
+  updateUrlPreview();
+  showToast('🔄 Reset to auto-detect');
+}
+
+function changePin() {
+  const cur = document.getElementById('s_current').value;
+  const nw = document.getElementById('s_new').value;
+  const conf = document.getElementById('s_confirm').value;
+
+  if (cur !== getPin()) { showToast('❌ Current PIN wrong', true); return; }
+  if (nw.length !== 4 || !/^\d{4}$/.test(nw)) { showToast('❌ PIN must be 4 digits', true); return; }
+  if (nw !== conf) { showToast('❌ PINs do not match', true); return; }
+  
+  DB.set('mt_pin', nw);
+  ['s_current','s_new','s_confirm'].forEach(id => document.getElementById(id).value = '');
+  showToast('✅ PIN updated!');
+}
+
+function clearAllData() {
+  if (!confirm('⚠️ ALL data will be deleted. Are you sure?')) return;
+  if (!confirm('Final confirm — this cannot be undone!')) return;
+  
+  DB.remove('mt_meetings');
+  DB.remove('mt_attendance');
+  renderDashboard(); 
+  renderMeetings(); 
+  renderAttendance();
+  showToast('🗑 All data cleared');
+}
+
+// ============ TABS ============
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  
+  const tabEls = document.querySelectorAll('.tab');
+  const map = {dashboard:0, create:1, meetings:2, attendance:3, settings:4};
+  if (map[name] !== undefined) tabEls[map[name]].classList.add('active');
+  
+  if (name === 'attendance') { renderAttendance(); populateAttendanceFilter(); }
+  if (name === 'meetings') renderMeetings();
+  if (name === 'settings') initSettings();
+}
+
+// ============ UTILS ============
+function showToast(msg, err=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (err ? ' error' : ' success');
+  clearTimeout(t._to);
+  t._to = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ============ INIT ============
+function initApp() {
+  document.getElementById('navDate').textContent = new Date().toLocaleDateString('en-IN', {weekday:'short',year:'numeric',month:'short',day:'numeric'});
+  document.getElementById('f_date').value = new Date().toISOString().split('T')[0];
+  renderDashboard();
+  renderMeetings();
+  renderAttendance();
+  populateAttendanceFilter();
+}
+
+// Window click closes modals
+window.addEventListener('click', e => {
+  ['qrModal','sigViewModal'].forEach(id => {
+    const el = document.getElementById(id);
+    if (e.target === el) el.classList.remove('show');
+  });
+});
+
+// Feature detection
+window.addEventListener('load', () => {
+  if (!window.localStorage) {
+    alert('❌ localStorage required');
+    return;
+  }
+});
+</script>
+</body>
+</html>

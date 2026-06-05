@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>MeetTrack — Mark Attendance v2.0</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #181c24;
+    --border: #1e2430;
+    --accent: #00d4aa;
+    --accent2: #0099ff;
+    --danger: #ff4757;
+    --warn: #ffa502;
+    --success: #2ed573;
+    --text: #e8eaf0;
+    --muted: #5a6270;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  .container {
+    padding: 32px 20px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .logo {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .logo-text {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+
+  .logo-text span { color: var(--accent); }
+  .logo-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* ERROR PAGE */
+  .error-page {
+    text-align: center;
+    padding: 40px 20px;
+  }
+
+  .error-icon {
+    font-size: 60px;
+    margin-bottom: 16px;
+  }
+
+  .error-page h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    margin-bottom: 8px;
+  }
+
+  .error-page p {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* MEETING BANNER */
+  .meeting-banner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--accent);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .mtg-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .mtg-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+
+  .mtg-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mtg-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+  }
+
+  .mtg-row-icon { opacity: 0.6; }
+
+  .status-pill {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 12px;
+  }
+
+  .pill-active { background: rgba(0,212,170,0.12); color: var(--accent); }
+  .pill-ended { background: rgba(255,71,87,0.12); color: var(--danger); }
+
+  /* ATTENDANCE CLOSED */
+  .ended-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    text-align: center;
+  }
+
+  .ended-icon {
+    font-size: 60px;
+    margin-bottom: 16px;
+  }
+
+  .ended-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--danger);
+  }
+
+  /* ALREADY MARKED */
+  .already-card {
+    background: var(--surface);
+    border: 2px solid var(--accent);
+    border-radius: 16px;
+    padding: 40px;
+    text-align: center;
+  }
+
+  .check-icon {
+    width: 80px;
+    height: 80px;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    font-size: 40px;
+  }
+
+  .already-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--accent);
+  }
+
+  .already-sub {
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  /* FORM */
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  .form-card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .form-group {
+    margin-bottom: 14px;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text);
+  }
+
+  input, textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,212,170,0.1);
+  }
+
+  .err-msg {
+    display: none;
+    color: var(--danger);
+    font-size: 11px;
+    margin-top: 4px;
+    animation: shake 0.3s;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+  }
+
+  /* SIGNATURE TABS */
+  .sig-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sig-tab {
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .sig-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* CANVAS */
+  .canvas-wrap {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+
+  #sigCanvas {
+    display: block;
+    width: 100%;
+    touch-action: none;
+  }
+
+  .canvas-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .btn-sm {
+    padding: 8px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 12px;
+    cursor: pointer;
+    flex: 1;
+    transition: all 0.2s;
+  }
+
+  .btn-sm:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .sig-hint {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  #textSig {
+    font-family: 'Dancing Script', cursive;
+    font-size: 24px;
+  }
+
+  /* BUTTON */
+  .btn-submit {
+    width: 100%;
+    padding: 14px;
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    color: var(--bg);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,212,170,0.2);
+  }
+
+  .btn-submit:active {
+    transform: translateY(0);
+  }
+
+  .btn-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* SUCCESS SCREEN */
+  .success-screen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 999;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    padding: 40px;
+  }
+
+  .success-screen.show {
+    display: flex;
+  }
+
+  .success-anim {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: rgba(0,212,170, 0.1);
+    border: 3px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    margin-bottom: 24px;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0,212,170, 0.4); }
+    50% { box-shadow: 0 0 0 20px rgba(0,212,170, 0); }
+  }
+
+  .success-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .success-name {
+    font-size: 18px;
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+
+  .success-time {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 24px;
+  }
+
+  .success-meeting {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: left;
+    margin-bottom: 24px;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .success-meeting-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .success-meeting-row {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 12px;
+    max-width: 280px;
+    display: none;
+    animation: slideIn 0.3s ease;
+    z-index: 2000;
+  }
+
+  .toast.show {
+    display: block;
+  }
+
+  .toast.error {
+    border-left-color: var(--danger);
+  }
+
+  @keyframes slideIn {
+    from { transform: translateX(400px); }
+    to { transform: translateX(0); }
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 600px) {
+    .container { padding: 20px 16px; }
+    .logo-text { font-size: 22px; }
+    #sigCanvas { max-height: 120px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="logo">
+    <div class="logo-text">Meet<span>Track</span></div>
+    <div class="logo-sub">Digital Attendance System</div>
+  </div>
+  <div id="mainContent">Loading...</div>
+</div>
+
+<!-- SUCCESS SCREEN -->
+<div class="success-screen" id="successScreen">
+  <div class="success-anim">✓</div>
+  <div class="success-title">Attendance Marked!</div>
+  <div class="success-name" id="sName"></div>
+  <div class="success-time" id="sTime"></div>
+  <div class="success-meeting" id="sMeeting"></div>
+  <div style="font-size:13px;color:var(--muted);">Thank you! Aap ja sakte hain. 🙏</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============ STORAGE ============
+const DB = {
+  get: (k) => { 
+    try { 
+      return JSON.parse(localStorage.getItem(k)) || []; 
+    } catch { 
+      return []; 
+    } 
+  },
+  set: (k, v) => {
+    try {
+      localStorage.setItem(k, JSON.stringify(v));
+      return true;
+    } catch (e) {
+      if (e.name === 'QuotaExceededError') {
+        showToast('❌ Storage limit exceeded', true);
+        return false;
+      }
+      showToast('❌ Storage error', true);
+      return false;
+    }
+  },
+  getStr: (k, d = '') => {
+    try {
+      return localStorage.getItem(k) || d;
+    } catch {
+      return d;
+    }
+  }
+};
+
+// ============ URL PARAMS ============
+const params = new URLSearchParams(window.location.search);
+const meetingId = params.get('id');
+const mtgTitle = params.get('title') || '';
+const mtgDate = params.get('date') || '';
+const mtgTime = params.get('time') || '';
+const mtgVenue = params.get('venue') || '';
+const mtgTopic = params.get('topic') || '';
+
+// ============ SIGNATURE STATE ============
+let sigMode = 'draw';
+let canvas, ctx;
+let isDrawing = false, lastX = 0, lastY = 0;
+let hasDrawn = false;
+let snapshots = [];
+
+// ============ INPUT SANITIZATION ============
+function sanitizeInput(str, maxLen = 100) {
+  if (!str || typeof str !== 'string') return '';
+  return str
+    .trim()
+    .replace(/[<>]/g, '')
+    .substring(0, maxLen);
+}
+
+// ============ INIT ============
+window.addEventListener('load', () => {
+  const content = document.getElementById('mainContent');
+
+  if (!meetingId) {
+    content.innerHTML = `
+      <div class="error-page">
+        <div class="icon">🔗</div>
+        <h2>Invalid Link</h2>
+        <p>QR code invalid. Admin se request karein.</p>
+      </div>`;
+    return;
+  }
+
+  // Get meeting from localStorage
+  const meetings = DB.get('mt_meetings');
+  const meeting = meetings.find(m => m.id === meetingId);
+  const meetingStatus = meeting ? meeting.status : 'active';
+
+  // Check already attended
+  const attendance = DB.get('mt_attendance');
+  const alreadyKey = `mt_done_${meetingId}`;
+  const alreadyAttended = localStorage.getItem(alreadyKey);
+
+  // Render meeting banner
+  const bannerHtml = `
+    <div class="meeting-banner">
+      <div class="mtg-label">📋 Meeting Details</div>
+      <div class="mtg-title">${sanitizeInput(mtgTitle)}</div>
+      <div class="mtg-info">
+        <div class="mtg-row"><span class="mtg-row-icon">📅</span><span>${sanitizeInput(mtgDate)} at ${sanitizeInput(mtgTime)}</span></div>
+        <div class="mtg-row"><span class="mtg-row-icon">📍</span><span>${sanitizeInput(mtgVenue)}</span></div>
+        ${mtgTopic ? `<div style="margin-top:8px;"><strong>Topic:</strong> ${sanitizeInput(mtgTopic)}</div>` : ''}
+      </div>
+      ${meetingStatus === 'active'
+        ? '<span class="status-pill pill-active">● Attendance Open</span>'
+        : '<span class="status-pill pill-ended">Attendance Closed</span>'}
+    </div>
+  `;
+
+  if (meetingStatus === 'ended') {
+    content.innerHTML = bannerHtml + `
+      <div class="ended-card">
+        <div class="ended-icon">🔒</div>
+        <div class="ended-title">Attendance Closed</div>
+        <p style="font-size:13px;color:var(--muted);">Meeting attendance closed.</p>
+      </div>`;
+    return;
+  }
+
+  if (alreadyAttended) {
+    const d = JSON.parse(alreadyAttended);
+    content.innerHTML = bannerHtml + `
+      <div class="already-card">
+        <div class="check-icon">✓</div>
+        <div class="already-title">Already Marked!</div>
+        <div class="already-sub">Your attendance is already recorded.<br><strong>${sanitizeInput(d.name)}</strong><br><small>${new Date(d.timestamp).toLocaleString('en-IN')}</small></div>
+      </div>`;
+    return;
+  }
+
+  content.innerHTML = bannerHtml + buildForm();
+  initCanvas();
+});
+
+function buildForm() {
+  return `
+    <div class="form-card">
+      <div class="form-card-title">👤 Your Details</div>
+
+      <div class="form-group">
+        <label>Full Name *</label>
+        <input type="text" id="f_name" placeholder="Your full name" autocomplete="name" maxlength="100">
+        <div class="err-msg" id="e_name">Name required (max 100 chars)</div>
+      </div>
+
+      <div class="form-group">
+        <label>Designation</label>
+        <input type="text" id="f_desig" placeholder="e.g. Manager" maxlength="80" autocomplete="organization-title">
+      </div>
+
+      <div class="form-group">
+        <label>Department</label>
+        <input type="text" id="f_dept" placeholder="e.g. Operations" maxlength="80">
+      </div>
+
+      <div class="form-group">
+        <label>Employee ID (optional)</label>
+        <input type="text" id="f_empid" placeholder="e.g. EMP-1042" maxlength="50">
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-card-title">✍️ Digital Signature</div>
+
+      <div class="sig-tabs">
+        <div class="sig-tab active" id="tabDraw" onclick="setSigMode('draw')">🖊 Draw</div>
+        <div class="sig-tab" id="tabText" onclick="setSigMode('text')">⌨️ Type</div>
+      </div>
+
+      <div id="drawSigArea">
+        <div class="canvas-wrap" id="canvasWrap">
+          <canvas id="sigCanvas"></canvas>
+        </div>
+        <div class="canvas-actions">
+          <button class="btn-sm" onclick="clearCanvas()">🗑 Clear</button>
+          <button class="btn-sm" onclick="undoCanvas()">↩ Undo</button>
+        </div>
+        <div class="sig-hint">Draw above with finger or mouse</div>
+        <div class="err-msg" id="e_drawsig">Please draw your signature</div>
+      </div>
+
+      <div id="textSigArea" style="display:none;">
+        <input type="text" id="textSig" placeholder="Type your signature" style="font-family:'Dancing Script',cursive;font-size:20px;" maxlength="100">
+        <div class="err-msg" id="e_textsig">Please type your signature</div>
+      </div>
+    </div>
+
+    <button class="btn-submit" id="submitBtn" onclick="submitAttendance()">
+      ✅ Mark My Attendance
+    </button>
+  `;
+}
+
+// ============ CANVAS ============
+function initCanvas() {
+  canvas = document.getElementById('sigCanvas');
+  if (!canvas) return;
+  ctx = canvas.getContext('2d');
+  resizeCanvas();
+
+  // Mouse events
+  canvas.addEventListener('mousedown', startDraw);
+  canvas.addEventListener('mousemove', draw);
+  canvas.addEventListener('mouseup', endDraw);
+  canvas.addEventListener('mouseleave', endDraw);
+
+  // Touch events
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const t = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    startDraw({ clientX: t.clientX, clientY: t.clientY, rect });
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const t = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    draw({ clientX: t.clientX, clientY: t.clientY, rect });
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', endDraw, { passive: false });
+
+  window.addEventListener('resize', resizeCanvas);
+}
+
+function resizeCanvas() {
+  if (!canvas) return;
+  const wrap = document.getElementById('canvasWrap');
+  if (!wrap) return;
+  
+  const dpr = window.devicePixelRatio || 1;
+  const w = wrap.clientWidth;
+  const h = 150;
+  
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  
+  ctx.scale(dpr, dpr);
+  ctx.strokeStyle = '#1a1a2e';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+}
+
+function getPos(e) {
+  const rect = e.rect || canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  return {
+    x: (e.clientX - rect.left) * dpr,
+    y: (e.clientY - rect.top) * dpr
+  };
+}
+
+function startDraw(e) {
+  isDrawing = true;
+  const pos = getPos(e);
+  lastX = pos.x;
+  lastY = pos.y;
+  snapshots.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+  document.getElementById('canvasWrap').style.boxShadow = '0 0 0 2px var(--accent)';
+}
+
+function draw(e) {
+  if (!isDrawing) return;
+  const pos = getPos(e);
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+  lastX = pos.x;
+  lastY = pos.y;
+  hasDrawn = true;
+}
+
+function endDraw() {
+  isDrawing = false;
+}
+
+function clearCanvas() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  hasDrawn = false;
+  snapshots = [];
+  document.getElementById('canvasWrap').style.boxShadow = 'none';
+}
+
+function undoCanvas() {
+  if (snapshots.length > 0) {
+    ctx.putImageData(snapshots.pop(), 0, 0);
+    if (snapshots.length === 0) hasDrawn = false;
+  }
+}
+
+function setSigMode(mode) {
+  sigMode = mode;
+  document.getElementById('tabDraw').classList.toggle('active', mode === 'draw');
+  document.getElementById('tabText').classList.toggle('active', mode === 'text');
+  document.getElementById('drawSigArea').style.display = mode === 'draw' ? 'block' : 'none';
+  document.getElementById('textSigArea').style.display = mode === 'text' ? 'block' : 'none';
+}
+
+// ============ SUBMIT ============
+function submitAttendance() {
+  let ok = true;
+
+  // Validate name
+  const name = sanitizeInput(document.getElementById('f_name').value, 100);
+  if (!name) {
+    document.getElementById('e_name').style.display = 'block';
+    ok = false;
+  } else {
+    document.getElementById('e_name').style.display = 'none';
+  }
+
+  // Validate signature
+  let sigData = null, sigType = null;
+  
+  if (sigMode === 'draw') {
+    if (!hasDrawn) {
+      document.getElementById('e_drawsig').style.display = 'block';
+      ok = false;
+    } else {
+      document.getElementById('e_drawsig').style.display = 'none';
+      sigData = canvas.toDataURL('image/png');
+      sigType = 'draw';
+    }
+  } else {
+    const textSig = sanitizeInput(document.getElementById('textSig').value, 100);
+    if (!textSig) {
+      document.getElementById('e_textsig').style.display = 'block';
+      ok = false;
+    } else {
+      document.getElementById('e_textsig').style.display = 'none';
+      sigData = textSig;
+      sigType = 'text';
+    }
+  }
+
+  if (!ok) return;
+
+  // Check attendance window
+  const meetings = DB.get('mt_meetings');
+  const meeting = meetings.find(m => m.id === meetingId);
+  
+  if (!meeting) {
+    showToast('❌ Meeting not found', true);
+    return;
+  }
+
+  if (meeting.status === 'ended') {
+    showToast('❌ Attendance closed for this meeting', true);
+    return;
+  }
+
+  // Validate time window
+  const meetingTime = new Date(`${meeting.date}T${meeting.time}`);
+  const now = new Date();
+  
+  if (meetingTime > now) {
+    showToast('❌ Meeting hasn\'t started yet', true);
+    return;
+  }
+  
+  const minutesElapsed = (now - meetingTime) / 60000;
+  if (minutesElapsed > meeting.window) {
+    showToast(`❌ Attendance window closed (${meeting.window} min)`, true);
+    return;
+  }
+
+  // Save attendance
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  const record = {
+    id: 'ATD_' + Date.now(),
+    meetingId,
+    name,
+    designation: sanitizeInput(document.getElementById('f_desig').value, 80),
+    department: sanitizeInput(document.getElementById('f_dept').value, 80),
+    empId: sanitizeInput(document.getElementById('f_empid').value, 50),
+    signature: sigData,
+    sigType,
+    timestamp: new Date().toISOString(),
+    device: navigator.userAgent.substring(0, 100)
+  };
+
+  // Add to storage
+  const attendance = DB.get('mt_attendance');
+  attendance.push(record);
+  
+  if (!DB.set('mt_attendance', attendance)) {
+    btn.disabled = false;
+    btn.textContent = '✅ Mark My Attendance';
+    return;
+  }
+
+  // Mark as done on this device
+  try {
+    localStorage.setItem(`mt_done_${meetingId}`, JSON.stringify({
+      name,
+      timestamp: record.timestamp
+    }));
+  } catch (e) {
+    console.warn('Could not set completion flag', e);
+  }
+
+  // Show success
+  showSuccess(record);
+  btn.disabled = false;
+  btn.textContent = '✅ Mark My Attendance';
+}
+
+function showSuccess(record) {
+  document.getElementById('sName').textContent = sanitizeInput(record.name);
+  document.getElementById('sTime').textContent = new Date(record.timestamp)
+    .toLocaleString('en-IN', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  document.getElementById('sMeeting').innerHTML = `
+    <div class="success-meeting-title">${sanitizeInput(mtgTitle)}</div>
+    <div class="success-meeting-row">📅 ${sanitizeInput(mtgDate)} at ${sanitizeInput(mtgTime)}</div>
+    <div class="success-meeting-row">📍 ${sanitizeInput(mtgVenue)}</div>
+  `;
+  document.getElementById('successScreen').classList.add('show');
+}
+
+// ============ UTILS ============
+function showToast(msg, err = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (err ? ' error' : '');
+  clearTimeout(t._to);
+  t._to = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// Feature detection
+window.addEventListener('load', () => {
+  if (!window.localStorage) {
+    alert('❌ localStorage required');
+  }
+});
+</script>
+</body>
+</html>
