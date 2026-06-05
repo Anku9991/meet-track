@@ -69,6 +69,8 @@ function loadDB() {
   } catch (e) {
     console.log('Could not load DB file, using empty DB');
   }
+  // Ensure settings object exists
+  db.settings = db.settings || {};
 }
 
 function saveDB() {
@@ -374,10 +376,124 @@ app.post('/api/attendance', [
   db.attendance.push(attendance);
   saveDB();
 
+  // Trigger background JSONBin sync if configured
+  if (db.settings && db.settings.jsonbin && db.settings.jsonbin.key && db.settings.jsonbin.bin) {
+    pushToJSONBinServer().catch(err => console.error('JSONBin push failed:', err));
+  }
+
   res.status(201).json({
     message: 'Attendance marked',
     data: attendance
   });
+});
+
+// ============ JSONBin SERVER SYNC ============
+async function pushToJSONBinServer() {
+  try {
+    const jb = db.settings.jsonbin;
+    if (!jb || !jb.key || !jb.bin) throw new Error('JSONBin not configured');
+
+    const payload = {
+      exportDate: new Date().toISOString(),
+      meetings: db.meetings,
+      attendance: db.attendance
+    };
+
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${jb.bin}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': jb.key
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`JSONBin push failed: ${res.status} ${txt}`);
+    }
+    return true;
+  } catch (err) {
+    throw err;
+  }
+}
+
+async function pullFromJSONBinServer() {
+  try {
+    const jb = db.settings.jsonbin;
+    if (!jb || !jb.key || !jb.bin) throw new Error('JSONBin not configured');
+
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${jb.bin}/latest`, {
+      method: 'GET',
+      headers: { 'X-Master-Key': jb.key }
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`JSONBin pull failed: ${res.status} ${txt}`);
+    }
+
+    const data = await res.json();
+    const rec = data && data.record ? data.record : data;
+    return rec;
+  } catch (err) {
+    throw err;
+  }
+}
+
+// Protected endpoints to manage JSONBin settings and sync
+app.get('/api/admin/jsonbin', auth, (req, res) => {
+  const jb = db.settings.jsonbin || null;
+  res.json({ configured: !!(jb && jb.key && jb.bin), bin: jb ? jb.bin : null });
+});
+
+app.post('/api/admin/jsonbin', auth, [
+  body('key').notEmpty(),
+  body('bin').notEmpty()
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ error: 'Invalid payload' });
+  const { key, bin } = req.body;
+  db.settings.jsonbin = { key: sanitize(key, 200), bin: sanitize(bin, 200), updatedAt: new Date().toISOString() };
+  saveDB();
+  res.json({ message: 'JSONBin settings saved' });
+});
+
+app.post('/api/admin/jsonbin/push', auth, async (req, res) => {
+  try {
+    await pushToJSONBinServer();
+    res.json({ message: 'Pushed to JSONBin' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Push failed', details: err.message });
+  }
+});
+
+app.post('/api/admin/jsonbin/pull', auth, async (req, res) => {
+  try {
+    const rec = await pullFromJSONBinServer();
+    if (!rec) return res.status(404).json({ error: 'No record in bin' });
+
+    // Merge remote data
+    const remoteMeet = rec.meetings || [];
+    const remoteAtd = rec.attendance || [];
+
+    const mapMeet = {};
+    db.meetings.forEach(m => mapMeet[m.id] = m);
+    remoteMeet.forEach(m => { if (!mapMeet[m.id]) mapMeet[m.id] = m; });
+    db.meetings = Object.values(mapMeet).sort((a,b)=> new Date(b.createdAt||0)-new Date(a.createdAt||0));
+
+    const mapAtd = {};
+    db.attendance.forEach(a => mapAtd[a.id] = a);
+    remoteAtd.forEach(a => { if (!mapAtd[a.id]) mapAtd[a.id] = a; });
+    db.attendance = Object.values(mapAtd).sort((a,b)=> new Date(b.timestamp)-new Date(a.timestamp));
+
+    saveDB();
+    res.json({ message: 'Pulled and merged data', meetings: db.meetings.length, attendance: db.attendance.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Pull failed', details: err.message });
+  }
 });
 
 // Export attendance as CSV
