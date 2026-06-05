@@ -641,6 +641,26 @@
         <button class="btn-secondary" onclick="clearBaseUrl()" style="margin-left:10px;">Reset</button>
       </div>
 
+        <div class="form-card" style="max-width:540px;margin-top:20px;">
+          <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:8px;">☁️ JSONBin Sync</div>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Set JSONBin credentials. Attendance will sync only when both API Key and Bin ID are present.</p>
+          <div class="form-group">
+            <label>JSONBin API Key</label>
+            <input type="text" id="s_json_key" placeholder="Enter JSONBin API Key" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>JSONBin Bin ID</label>
+            <input type="text" id="s_json_bin" placeholder="Enter JSONBin Bin ID" autocomplete="off">
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn-primary" onclick="saveJSONBinSettings()">Save</button>
+            <button class="btn-secondary" onclick="testJSONBin()">Test</button>
+            <button class="btn-secondary" onclick="pushToJSONBin()">Sync Now</button>
+            <button class="btn-secondary" onclick="pullFromJSONBin()">Pull Remote</button>
+          </div>
+          <div id="s_json_status" style="font-size:12px;color:var(--muted);margin-top:10px;"></div>
+        </div>
+
       <div class="form-card" style="max-width:540px;margin-top:20px;">
         <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:16px;">🔐 Change PIN</div>
         <div class="form-group">
@@ -1253,6 +1273,116 @@ function initSettings() {
   const saved = DB.getStr('mt_base_url', '');
   document.getElementById('s_baseurl').value = saved;
   updateUrlPreview();
+  // JSONBin settings
+  const jkey = DB.getStr('mt_json_key', '');
+  const jbin = DB.getStr('mt_json_bin', '');
+  if (document.getElementById('s_json_key')) document.getElementById('s_json_key').value = jkey;
+  if (document.getElementById('s_json_bin')) document.getElementById('s_json_bin').value = jbin;
+  updateJSONStatus();
+}
+
+function updateJSONStatus(msg) {
+  const stat = document.getElementById('s_json_status');
+  if (!stat) return;
+  const jkey = DB.getStr('mt_json_key', '');
+  const jbin = DB.getStr('mt_json_bin', '');
+  if (!jkey || !jbin) stat.textContent = 'JSONBin not configured.';
+  else stat.textContent = msg || 'JSONBin configured. Ready to sync.';
+}
+
+function saveJSONBinSettings() {
+  const k = document.getElementById('s_json_key').value.trim();
+  const b = document.getElementById('s_json_bin').value.trim();
+  if (!k || !b) { showToast('❌ Provide both API Key and Bin ID', true); return; }
+  DB.set('mt_json_key', k);
+  DB.set('mt_json_bin', b);
+  updateJSONStatus('✅ JSONBin credentials saved locally');
+  showToast('✅ JSONBin saved');
+}
+
+async function testJSONBin() {
+  const k = DB.getStr('mt_json_key', '');
+  const b = DB.getStr('mt_json_bin', '');
+  if (!k || !b) { showToast('❌ Missing JSONBin credentials', true); return; }
+  try {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${b}/latest`, {
+      method: 'GET', headers: { 'X-Master-Key': k }
+    });
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    showToast('✅ JSONBin reachable');
+    updateJSONStatus('✅ JSONBin reachable.');
+  } catch (err) {
+    console.error(err);
+    showToast('❌ JSONBin test failed', true);
+    updateJSONStatus('JSONBin test failed');
+  }
+}
+
+async function pushToJSONBin() {
+  const k = DB.getStr('mt_json_key', '');
+  const b = DB.getStr('mt_json_bin', '');
+  if (!k || !b) { showToast('❌ Missing JSONBin credentials', true); return; }
+  const payload = {
+    exportDate: new Date().toISOString(),
+    meetings: getMeetings(),
+    attendance: getAttendance()
+  };
+  try {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${b}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': k },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(await res.text());
+    showToast('✅ Synced to JSONBin');
+    updateJSONStatus('Last sync: ' + new Date().toLocaleString());
+  } catch (err) {
+    console.error(err);
+    showToast('❌ Sync failed', true);
+    updateJSONStatus('Last sync failed');
+  }
+}
+
+async function pullFromJSONBin() {
+  const k = DB.getStr('mt_json_key', '');
+  const b = DB.getStr('mt_json_bin', '');
+  if (!k || !b) { showToast('❌ Missing JSONBin credentials', true); return; }
+  try {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${b}/latest`, { method: 'GET', headers: { 'X-Master-Key': k } });
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    const data = await res.json();
+    const rec = data && data.record ? data.record : data;
+    if (!rec) { showToast('❌ No record in bin', true); return; }
+    mergeRemoteData(rec);
+    showToast('✅ Pulled data from JSONBin');
+    updateJSONStatus('Last pull: ' + new Date().toLocaleString());
+  } catch (err) {
+    console.error(err);
+    showToast('❌ Pull failed', true);
+    updateJSONStatus('Last pull failed');
+  }
+}
+
+function mergeRemoteData(remote) {
+  if (!remote) return;
+  const localMeet = getMeetings();
+  const localAtd = getAttendance();
+
+  // Merge meetings by id
+  const mapMeet = {};
+  localMeet.forEach(m => mapMeet[m.id] = m);
+  (remote.meetings || []).forEach(m => { if (!mapMeet[m.id]) mapMeet[m.id] = m; });
+  const mergedMeet = Object.values(mapMeet).sort((a,b)=> new Date(b.createdAt||0)-new Date(a.createdAt||0));
+
+  // Merge attendance by id
+  const mapAtd = {};
+  localAtd.forEach(a => mapAtd[a.id] = a);
+  (remote.attendance || []).forEach(a => { if (!mapAtd[a.id]) mapAtd[a.id] = a; });
+  const mergedAtd = Object.values(mapAtd).sort((a,b)=> new Date(b.timestamp)-new Date(a.timestamp));
+
+  DB.set('mt_meetings', mergedMeet);
+  DB.set('mt_attendance', mergedAtd);
+  renderDashboard(); renderMeetings(); renderAttendance(); populateAttendanceFilter();
 }
 
 function updateUrlPreview() {

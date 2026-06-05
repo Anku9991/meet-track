@@ -892,6 +892,8 @@ function submitAttendance() {
 
   // Show success
   showSuccess(record);
+  // Attempt to sync to JSONBin if configured on this device
+  try { syncLocalToJSONBin(); } catch (e) { console.warn('JSONBin sync skipped', e); }
   btn.disabled = false;
   btn.textContent = '✅ Mark My Attendance';
 }
@@ -930,6 +932,31 @@ window.addEventListener('load', () => {
     alert('❌ localStorage required');
   }
 });
+
+// ============ JSONBIN SYNC (optional) ============
+async function syncLocalToJSONBin() {
+  const k = DB.getStr('mt_json_key', '');
+  const b = DB.getStr('mt_json_bin', '');
+  if (!k || !b) return; // not configured on this device
+
+  const payload = {
+    exportDate: new Date().toISOString(),
+    meetings: DB.get('mt_meetings'),
+    attendance: DB.get('mt_attendance')
+  };
+
+  try {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${b}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': k },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(await res.text());
+    showToast('✅ Synced attendance to JSONBin');
+  } catch (err) {
+    console.warn('JSONBin sync failed', err);
+  }
+}
 </script>
 </body>
 </html>
