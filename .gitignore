@@ -50,3 +50,8 @@ temp/
 *.key
 *.pem
 secrets/
+
+# Temp files created by scripts
+msg.txt
+msg2.txt
+payload.json

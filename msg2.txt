@@ -1,1 +1,0 @@
-fix: submit attendance via server API fallback to JSONBin client 

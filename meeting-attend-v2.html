@@ -871,9 +871,32 @@ function submitAttendance() {
   };
 
   // Add to storage
+  // Prefer submitting to server API (if available) so devices don't need JSONBin keys
+  try {
+    const srv = await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(record) });
+    if (srv.ok) {
+      // saved on server — also persist locally for offline visibility
+      const attendance = DB.get('mt_attendance');
+      attendance.push(record);
+      DB.set('mt_attendance', attendance);
+      try { localStorage.setItem(`mt_done_${meetingId}`, JSON.stringify({ name, timestamp: record.timestamp })); } catch (e) { console.warn('Could not set completion flag', e); }
+      btn.disabled = false;
+      btn.textContent = '✅ Mark My Attendance';
+      showSuccess(record);
+      // trigger server-side background JSONBin push happens in server
+      return;
+    }
+    // If server returned a JSON error, surface it
+    const txt = await srv.text();
+    try { const pj = JSON.parse(txt); if (pj && pj.error) { btn.disabled=false; btn.textContent='✅ Mark My Attendance'; showToast('❌ ' + pj.error, true); return; } } catch(e){ /* ignore non-JSON */ }
+  } catch (err) {
+    console.warn('Server submit failed, falling back to local+JSONBin sync', err);
+  }
+
+  // Fallback: save locally and attempt JSONBin sync from device
   const attendance = DB.get('mt_attendance');
   attendance.push(record);
-  
+
   if (!DB.set('mt_attendance', attendance)) {
     btn.disabled = false;
     btn.textContent = '✅ Mark My Attendance';
