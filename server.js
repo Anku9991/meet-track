@@ -9,6 +9,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 
 // Load environment variables
 dotenv.config();
@@ -71,6 +72,41 @@ function loadDB() {
   }
   // Ensure settings object exists
   db.settings = db.settings || {};
+}
+
+// ============ ENCRYPTION HELPERS ============
+const ENC_ALGO = 'aes-256-gcm';
+function getEncKey() {
+  const seed = process.env.JSONBIN_ENC_KEY || process.env.JWT_SECRET || 'dev-secret-key';
+  return crypto.createHash('sha256').update(String(seed)).digest();
+}
+
+function encryptSecret(plain) {
+  const key = getEncKey();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv(ENC_ALGO, key, iv);
+  const encrypted = Buffer.concat([cipher.update(String(plain), 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return { data: encrypted.toString('base64'), iv: iv.toString('base64'), tag: tag.toString('base64') };
+}
+
+function decryptSecret(obj) {
+  try {
+    if (!obj) return null;
+    // If legacy plain string stored, return it
+    if (typeof obj === 'string') return obj;
+    const key = getEncKey();
+    const iv = Buffer.from(obj.iv, 'base64');
+    const tag = Buffer.from(obj.tag, 'base64');
+    const data = Buffer.from(obj.data, 'base64');
+    const decipher = crypto.createDecipheriv(ENC_ALGO, key, iv);
+    decipher.setAuthTag(tag);
+    const dec = Buffer.concat([decipher.update(data), decipher.final()]);
+    return dec.toString('utf8');
+  } catch (e) {
+    console.error('Decrypt failed', e);
+    return null;
+  }
 }
 
 function saveDB() {
@@ -392,6 +428,8 @@ async function pushToJSONBinServer() {
   try {
     const jb = db.settings.jsonbin;
     if (!jb || !jb.key || !jb.bin) throw new Error('JSONBin not configured');
+    const key = decryptSecret(jb.key);
+    if (!key) throw new Error('Could not decrypt JSONBin key');
 
     const payload = {
       exportDate: new Date().toISOString(),
@@ -403,7 +441,7 @@ async function pushToJSONBinServer() {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'X-Master-Key': jb.key
+        'X-Master-Key': key
       },
       body: JSON.stringify(payload)
     });
@@ -422,10 +460,12 @@ async function pullFromJSONBinServer() {
   try {
     const jb = db.settings.jsonbin;
     if (!jb || !jb.key || !jb.bin) throw new Error('JSONBin not configured');
+    const key = decryptSecret(jb.key);
+    if (!key) throw new Error('Could not decrypt JSONBin key');
 
     const res = await fetch(`https://api.jsonbin.io/v3/b/${jb.bin}/latest`, {
       method: 'GET',
-      headers: { 'X-Master-Key': jb.key }
+      headers: { 'X-Master-Key': key }
     });
 
     if (!res.ok) {
@@ -454,9 +494,16 @@ app.post('/api/admin/jsonbin', auth, [
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ error: 'Invalid payload' });
   const { key, bin } = req.body;
-  db.settings.jsonbin = { key: sanitize(key, 200), bin: sanitize(bin, 200), updatedAt: new Date().toISOString() };
-  saveDB();
-  res.json({ message: 'JSONBin settings saved' });
+  // Encrypt key at rest
+  try {
+    const enc = encryptSecret(key);
+    db.settings.jsonbin = { key: enc, bin: sanitize(bin, 200), updatedAt: new Date().toISOString() };
+    saveDB();
+    res.json({ message: 'JSONBin settings saved (key encrypted)' });
+  } catch (e) {
+    console.error('Could not encrypt JSONBin key', e);
+    return res.status(500).json({ error: 'Could not save settings' });
+  }
 });
 
 app.post('/api/admin/jsonbin/push', auth, async (req, res) => {
