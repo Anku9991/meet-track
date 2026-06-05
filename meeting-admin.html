@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeetTrack — Admin Portal</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #181c24;
+    --border: #1e2430;
+    --accent: #00d4aa;
+    --accent2: #0099ff;
+    --danger: #ff4757;
+    --warn: #ffa502;
+    --text: #e8eaf0;
+    --muted: #5a6270;
+    --card-glow: 0 0 40px rgba(0,212,170,0.04);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* LOGIN SCREEN */
+  #loginScreen {
+    position: fixed; inset:0;
+    background: var(--bg);
+    display: flex; align-items:center; justify-content:center;
+    z-index:1000;
+  }
+  .login-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 40px;
+    width: 380px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,212,170,0.05);
+  }
+  .login-logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 4px;
+  }
+  .login-logo span { color: var(--accent); }
+  .login-sub { color: var(--muted); font-size: 13px; margin-bottom: 32px; }
+  .pin-label { font-size: 12px; color: var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; }
+  .pin-input {
+    display: flex; gap: 10px; justify-content: center; margin-bottom: 24px;
+  }
+  .pin-input input {
+    width: 48px; height: 56px;
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-size: 22px;
+    text-align: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .pin-input input:focus { border-color: var(--accent); }
+  .btn-login {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; border-radius: 12px;
+    color: #000; font-weight: 700; font-size: 15px;
+    cursor: pointer; transition: opacity .2s;
+    font-family: 'Syne', sans-serif;
+  }
+  .btn-login:hover { opacity: .9; }
+  .login-err { color: var(--danger); font-size: 13px; margin-top:12px; display:none; }
+
+  /* MAIN APP */
+  #app { display:none; }
+
+  /* TOP NAV */
+  nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    height: 64px;
+    display: flex; align-items:center; justify-content:space-between;
+    position: sticky; top:0; z-index:100;
+  }
+  .nav-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 20px; letter-spacing:-0.5px;
+  }
+  .nav-logo span { color: var(--accent); }
+  .nav-right { display:flex; align-items:center; gap:16px; }
+  .nav-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px; color: var(--muted);
+  }
+  .btn-logout {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 16px;
+    color: var(--muted); font-size: 13px;
+    cursor: pointer; transition: all .2s;
+  }
+  .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* TABS */
+  .tabs {
+    display: flex; gap: 4px;
+    padding: 20px 32px 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .tab {
+    padding: 10px 20px;
+    font-size: 14px; font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all .2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  /* CONTENT */
+  .content { padding: 32px; max-width: 1200px; margin: 0 auto; }
+
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+
+  /* SECTION HEADER */
+  .sec-header { margin-bottom: 28px; }
+  .sec-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 24px; font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .sec-sub { color: var(--muted); font-size: 14px; }
+
+  /* FORM CARD */
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: var(--card-glow);
+  }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .form-group { display:flex; flex-direction:column; gap:8px; }
+  .form-group.full { grid-column: 1/-1; }
+  label { font-size: 13px; color: var(--muted); text-transform:uppercase; letter-spacing:.8px; }
+  input, select, textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-size: 15px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    transition: border-color .2s;
+    width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 80px; }
+  select option { background: var(--surface2); }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; border-radius: 10px;
+    padding: 13px 28px;
+    color: #000; font-weight: 700; font-size: 14px;
+    cursor: pointer; transition: opacity .2s;
+    font-family: 'Syne', sans-serif;
+    letter-spacing: .3px;
+  }
+  .btn-primary:hover { opacity:.88; }
+  .btn-secondary {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 28px;
+    color: var(--text); font-weight: 500; font-size: 14px;
+    cursor: pointer; transition: all .2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-danger {
+    background: transparent;
+    border: 1px solid var(--danger);
+    border-radius: 8px;
+    padding: 7px 14px;
+    color: var(--danger); font-size: 13px;
+    cursor: pointer; transition: all .2s;
+  }
+  .btn-danger:hover { background: var(--danger); color:#fff; }
+
+  .form-actions { display:flex; gap:12px; margin-top:24px; justify-content:flex-end; }
+
+  /* QR MODAL */
+  .modal-overlay {
+    position: fixed; inset:0;
+    background: rgba(0,0,0,.8);
+    backdrop-filter: blur(8px);
+    display: flex; align-items:center; justify-content:center;
+    z-index: 500;
+    display: none;
+  }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px;
+    width: 480px;
+    text-align: center;
+    position: relative;
+  }
+  .modal-close {
+    position: absolute; top:16px; right:16px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; width:32px; height:32px;
+    color: var(--muted); cursor:pointer; font-size:18px;
+    display:flex; align-items:center; justify-content:center;
+    transition: all .2s;
+  }
+  .modal-close:hover { border-color: var(--danger); color: var(--danger); }
+  .modal-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px; font-weight:700; margin-bottom:4px;
+  }
+  .modal-sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .qr-container {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    display: inline-block;
+    margin-bottom: 20px;
+  }
+  .qr-meta {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: left;
+    margin-bottom: 20px;
+    font-size: 13px;
+  }
+  .qr-meta-row { display:flex; justify-content:space-between; padding:4px 0; }
+  .qr-meta-row span:first-child { color: var(--muted); }
+  .qr-meta-row span:last-child { font-weight:500; }
+  .qr-actions { display:flex; gap:10px; justify-content:center; }
+  .qr-url-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 11px;
+    color: var(--muted);
+    word-break: break-all;
+    margin-bottom: 16px;
+    text-align: left;
+  }
+
+  /* MEETINGS LIST */
+  .meetings-grid { display: grid; gap: 16px; }
+  .meeting-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: center;
+    transition: border-color .2s;
+  }
+  .meeting-card:hover { border-color: rgba(0,212,170,0.3); }
+  .meeting-card-left { display:flex; flex-direction:column; gap:6px; }
+  .meeting-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 17px; font-weight: 700;
+  }
+  .meeting-topic { color: var(--muted); font-size: 13px; }
+  .meeting-meta { display:flex; gap:16px; margin-top:4px; flex-wrap:wrap; }
+  .meta-chip {
+    display:flex; align-items:center; gap:5px;
+    font-size: 12px; color: var(--muted);
+  }
+  .meta-chip svg { opacity:.6; }
+  .status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px; font-weight:600;
+    text-transform: uppercase; letter-spacing:.5px;
+  }
+  .status-active { background: rgba(0,212,170,.12); color: var(--accent); border:1px solid rgba(0,212,170,.2); }
+  .status-ended { background: rgba(90,98,112,.12); color: var(--muted); border:1px solid var(--border); }
+  .meeting-card-right { display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
+  .attend-count {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px; font-weight: 800; color: var(--accent);
+    line-height:1;
+  }
+  .attend-label { font-size: 11px; color: var(--muted); }
+  .card-actions { display:flex; gap:8px; }
+  .btn-icon {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 12px;
+    color: var(--muted); font-size: 12px;
+    cursor: pointer; transition: all .2s;
+    white-space: nowrap;
+  }
+  .btn-icon:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ATTENDANCE TABLE */
+  .attend-header {
+    display: flex; align-items:center; justify-content:space-between;
+    margin-bottom: 20px; flex-wrap:wrap; gap:12px;
+  }
+  .search-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 16px;
+    color: var(--text); font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    width: 260px;
+    transition: border-color .2s;
+  }
+  .search-box:focus { border-color: var(--accent); }
+  .meeting-select-filter {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 16px;
+    color: var(--text); font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    min-width: 200px;
+  }
+
+  table { width:100%; border-collapse:collapse; }
+  thead th {
+    background: var(--surface);
+    padding: 12px 16px;
+    text-align:left;
+    font-size: 12px; color: var(--muted);
+    text-transform: uppercase; letter-spacing:.7px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+  }
+  tbody tr {
+    border-bottom: 1px solid rgba(30,36,48,.6);
+    transition: background .15s;
+  }
+  tbody tr:hover { background: rgba(255,255,255,.02); }
+  tbody td {
+    padding: 14px 16px;
+    font-size: 14px;
+  }
+  .sig-thumb {
+    max-width: 80px; max-height: 36px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+  }
+  .sig-text-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px; color: var(--text);
+  }
+
+  .empty-state {
+    text-align:center; padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-icon { font-size:40px; margin-bottom:12px; }
+  .empty-text { font-size: 15px; }
+
+  /* STATS */
+  .stats-row { display:grid; grid-template-columns: repeat(4,1fr); gap:16px; margin-bottom:28px; }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+  }
+  .stat-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 36px; font-weight:800;
+    color: var(--accent);
+    line-height:1;
+    margin-bottom: 4px;
+  }
+  .stat-label { font-size: 13px; color: var(--muted); }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom:24px; right:24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: 14px 20px;
+    font-size: 14px;
+    z-index: 9999;
+    transform: translateX(120%);
+    transition: transform .3s ease;
+    min-width: 220px;
+  }
+  .toast.show { transform: translateX(0); }
+  .toast.error { border-left-color: var(--danger); }
+
+  /* SIG VIEWER MODAL */
+  #sigViewModal .modal { max-width:360px; }
+  #sigViewImg { max-width:100%; border-radius:8px; background:#fff; padding:8px; }
+
+  /* RESPONSIVE */
+  @media(max-width:768px) {
+    .content { padding:16px; }
+    .form-grid { grid-template-columns:1fr; }
+    .stats-row { grid-template-columns:1fr 1fr; }
+    .meeting-card { grid-template-columns:1fr; }
+    nav { padding:0 16px; }
+    .tabs { padding:16px 16px 0; overflow-x:auto; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">Meet<span>Track</span></div>
+    <div class="login-sub">Admin Portal — Enter PIN to continue</div>
+    <div class="pin-label">4-Digit PIN</div>
+    <div class="pin-input">
+      <input type="password" maxlength="1" id="p1" inputmode="numeric">
+      <input type="password" maxlength="1" id="p2" inputmode="numeric">
+      <input type="password" maxlength="1" id="p3" inputmode="numeric">
+      <input type="password" maxlength="1" id="p4" inputmode="numeric">
+    </div>
+    <button class="btn-login" onclick="doLogin()">UNLOCK</button>
+    <div class="login-err" id="loginErr">❌ Wrong PIN. Try again.</div>
+    <div style="margin-top:14px;font-size:11px;color:var(--muted);">Default PIN: 1234 (change in settings)</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <nav>
+    <div class="nav-logo">Meet<span>Track</span> <span style="font-size:12px;color:var(--muted);font-weight:400;font-family:'DM Sans'">Admin</span></div>
+    <div class="nav-right">
+      <div class="nav-badge" id="navDate"></div>
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('dashboard')">📊 Dashboard</div>
+    <div class="tab" onclick="switchTab('create')">➕ New Meeting</div>
+    <div class="tab" onclick="switchTab('meetings')">📋 All Meetings</div>
+    <div class="tab" onclick="switchTab('attendance')">✅ Attendance</div>
+    <div class="tab" onclick="switchTab('settings')">⚙️ Settings</div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="tab-panel active" id="tab-dashboard">
+      <div class="sec-header">
+        <div class="sec-title">Overview</div>
+        <div class="sec-sub">Real-time attendance summary</div>
+      </div>
+      <div class="stats-row" id="statsRow"></div>
+      <div class="sec-title" style="font-size:18px;margin-bottom:16px;">Recent Meetings</div>
+      <div id="dashMeetings"></div>
+    </div>
+
+    <!-- CREATE -->
+    <div class="tab-panel" id="tab-create">
+      <div class="sec-header">
+        <div class="sec-title">Create New Meeting</div>
+        <div class="sec-sub">Fill details → QR auto-generate hoga</div>
+      </div>
+      <div class="form-card">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Meeting Title *</label>
+            <input type="text" id="f_title" placeholder="e.g. Monthly Operations Review">
+          </div>
+          <div class="form-group full">
+            <label>Topic / Agenda *</label>
+            <textarea id="f_topic" placeholder="Meeting ka topic describe karein..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Date *</label>
+            <input type="date" id="f_date">
+          </div>
+          <div class="form-group">
+            <label>Time *</label>
+            <input type="time" id="f_time">
+          </div>
+          <div class="form-group">
+            <label>Venue / Location *</label>
+            <input type="text" id="f_venue" placeholder="e.g. Conference Room A, 3rd Floor">
+          </div>
+          <div class="form-group">
+            <label>Organizer Name</label>
+            <input type="text" id="f_organizer" placeholder="e.g. HR Department">
+          </div>
+          <div class="form-group">
+            <label>Department</label>
+            <input type="text" id="f_dept" placeholder="e.g. Operations">
+          </div>
+          <div class="form-group">
+            <label>Expected Attendees</label>
+            <input type="number" id="f_expected" placeholder="e.g. 25" min="1">
+          </div>
+          <div class="form-group">
+            <label>Attendance Window (minutes)</label>
+            <input type="number" id="f_window" placeholder="e.g. 30" min="5" value="60">
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="f_status">
+              <option value="active">Active (QR Scannable)</option>
+              <option value="ended">Ended</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-secondary" onclick="clearForm()">Clear</button>
+          <button class="btn-primary" onclick="createMeeting()">🚀 Create & Generate QR</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MEETINGS -->
+    <div class="tab-panel" id="tab-meetings">
+      <div class="sec-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+        <div>
+          <div class="sec-title">All Meetings</div>
+          <div class="sec-sub">Manage, view QR, export attendance</div>
+        </div>
+        <button class="btn-primary" onclick="switchTab('create')">+ New Meeting</button>
+      </div>
+      <div class="meetings-grid" id="meetingsList"></div>
+    </div>
+
+    <!-- ATTENDANCE -->
+    <div class="tab-panel" id="tab-attendance">
+      <div class="sec-header">
+        <div class="sec-title">Attendance Records</div>
+        <div class="sec-sub">Filter, search, export</div>
+      </div>
+      <div class="attend-header">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <select class="meeting-select-filter" id="attendMeetingFilter" onchange="renderAttendance()">
+            <option value="">All Meetings</option>
+          </select>
+          <input class="search-box" type="text" id="attendSearch" placeholder="🔍 Search by name..." oninput="renderAttendance()">
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-secondary" onclick="exportCSV()">⬇ Export CSV</button>
+          <button class="btn-secondary" onclick="exportJSON()">⬇ Export JSON</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Designation</th>
+              <th>Department</th>
+              <th>Meeting</th>
+              <th>Date & Time</th>
+              <th>Signature</th>
+              <th>IP / Device</th>
+            </tr>
+          </thead>
+          <tbody id="attendBody"></tbody>
+        </table>
+      </div>
+      <div id="attendEmpty" class="empty-state" style="display:none;">
+        <div class="empty-icon">📭</div>
+        <div class="empty-text">No attendance records yet</div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="tab-panel" id="tab-settings">
+      <div class="sec-header">
+        <div class="sec-title">Settings</div>
+        <div class="sec-sub">Configure admin PIN and preferences</div>
+      </div>
+
+      <!-- BASE URL CONFIG -->
+      <div class="form-card" style="max-width:540px;margin-bottom:20px;">
+        <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:6px;">🌐 Site Base URL</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+          Apna hosted domain yahan set karein taaki QR code sahi URL generate kare.<br>
+          Example: <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:12px;">https://yoursite.com</code> ya <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:12px;">https://yoursite.com/meettrack</code>
+        </p>
+        <div class="form-group" style="margin-bottom:16px;">
+          <label>Base URL (no trailing slash)</label>
+          <input type="url" id="s_baseurl" placeholder="https://yoursite.com" autocomplete="off">
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--muted);margin-bottom:16px;word-break:break-all;" id="s_urlPreview">
+          QR URL preview yahan dikhega...
+        </div>
+        <button class="btn-primary" onclick="saveBaseUrl()">💾 Save URL</button>
+        <button class="btn-secondary" onclick="clearBaseUrl()" style="margin-left:10px;">Reset to Auto</button>
+      </div>
+
+      <div class="form-card" style="max-width:440px;">
+        <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:16px;">🔐 Change PIN</div>
+        <div class="form-group" style="margin-bottom:20px;">
+          <label>Current PIN</label>
+          <input type="password" id="s_current" placeholder="Enter current PIN">
+        </div>
+        <div class="form-group" style="margin-bottom:20px;">
+          <label>New PIN (4 digits)</label>
+          <input type="password" id="s_new" placeholder="New 4-digit PIN" maxlength="4" inputmode="numeric">
+        </div>
+        <div class="form-group" style="margin-bottom:24px;">
+          <label>Confirm New PIN</label>
+          <input type="password" id="s_confirm" placeholder="Confirm PIN" maxlength="4" inputmode="numeric">
+        </div>
+        <button class="btn-primary" onclick="changePin()">Update PIN</button>
+      </div>
+      <div class="form-card" style="max-width:440px;margin-top:20px;">
+        <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:16px;">Danger Zone</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Permanently delete all meetings and attendance data from localStorage.</p>
+        <button class="btn-danger" onclick="clearAllData()">🗑 Clear All Data</button>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<!-- QR MODAL -->
+<div class="modal-overlay" id="qrModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('qrModal')">×</button>
+    <div class="modal-title" id="qrModalTitle">Meeting QR Code</div>
+    <div class="modal-sub">Staff ko ye QR scan karwayein attendance ke liye</div>
+    <div class="qr-container" id="qrContainer"></div>
+    <div class="qr-url-box" id="qrUrlBox"></div>
+    <div class="qr-meta" id="qrMeta"></div>
+    <div class="qr-actions">
+      <button class="btn-secondary" onclick="printQR()">🖨 Print QR</button>
+      <button class="btn-primary" onclick="downloadQR()">⬇ Download</button>
+    </div>
+  </div>
+</div>
+
+<!-- SIG VIEW MODAL -->
+<div class="modal-overlay" id="sigViewModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('sigViewModal')">×</button>
+    <div class="modal-title">Digital Signature</div>
+    <div class="modal-sub" id="sigViewName"></div>
+    <img id="sigViewImg" src="" alt="Signature">
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============ STORAGE HELPERS ============
+const DB = {
+  get: (k) => { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } },
+  set: (k,v) => localStorage.setItem(k, JSON.stringify(v)),
+  getStr: (k,d='') => localStorage.getItem(k) || d
+};
+
+// ============ AUTH ============
+const DEFAULT_PIN = '1234';
+
+function getPin() { return DB.getStr('mt_pin', DEFAULT_PIN); }
+
+function doLogin() {
+  const pin = ['p1','p2','p3','p4'].map(id => document.getElementById(id).value).join('');
+  if (pin === getPin()) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initApp();
+  } else {
+    document.getElementById('loginErr').style.display = 'block';
+    ['p1','p2','p3','p4'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('p1').focus();
+  }
+}
+
+function logout() {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  ['p1','p2','p3','p4'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('loginErr').style.display = 'none';
+}
+
+// PIN input auto-advance
+['p1','p2','p3','p4'].forEach((id, i) => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    if (el.value.length === 1 && i < 3) document.getElementById(['p1','p2','p3','p4'][i+1]).focus();
+    if (i === 3 && el.value.length === 1) doLogin();
+  });
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace' && el.value === '' && i > 0) document.getElementById(['p1','p2','p3','p4'][i-1]).focus();
+  });
+});
+
+// ============ APP INIT ============
+function initApp() {
+  document.getElementById('navDate').textContent = new Date().toLocaleDateString('en-IN', {weekday:'short',year:'numeric',month:'short',day:'numeric'});
+  document.getElementById('f_date').value = new Date().toISOString().split('T')[0];
+  renderDashboard();
+  renderMeetings();
+  renderAttendance();
+  populateAttendanceFilter();
+}
+
+// ============ TABS ============
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  const tabEls = document.querySelectorAll('.tab');
+  const map = {dashboard:0, create:1, meetings:2, attendance:3, settings:4};
+  if (map[name] !== undefined) tabEls[map[name]].classList.add('active');
+  if (name === 'attendance') { renderAttendance(); populateAttendanceFilter(); }
+  if (name === 'meetings') renderMeetings();
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'settings') initSettings();
+}
+
+// ============ MEETINGS ============
+function getMeetings() { return DB.get('mt_meetings'); }
+function saveMeetings(m) { DB.set('mt_meetings', m); }
+function getAttendance() { return DB.get('mt_attendance'); }
+
+function createMeeting() {
+  const title = document.getElementById('f_title').value.trim();
+  const topic = document.getElementById('f_topic').value.trim();
+  const date = document.getElementById('f_date').value;
+  const time = document.getElementById('f_time').value;
+  const venue = document.getElementById('f_venue').value.trim();
+  if (!title || !topic || !date || !time || !venue) {
+    showToast('❗ Fill all required fields', true); return;
+  }
+  const id = 'MTG_' + Date.now();
+  const meeting = {
+    id, title, topic, date, time, venue,
+    organizer: document.getElementById('f_organizer').value.trim(),
+    dept: document.getElementById('f_dept').value.trim(),
+    expected: parseInt(document.getElementById('f_expected').value) || 0,
+    window: parseInt(document.getElementById('f_window').value) || 60,
+    status: document.getElementById('f_status').value,
+    createdAt: new Date().toISOString()
+  };
+  const meetings = getMeetings();
+  meetings.unshift(meeting);
+  saveMeetings(meetings);
+  showToast('✅ Meeting created!');
+  clearForm();
+  showQR(meeting);
+}
+
+function clearForm() {
+  ['f_title','f_topic','f_venue','f_organizer','f_dept','f_expected'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f_date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('f_time').value = '';
+  document.getElementById('f_window').value = '60';
+  document.getElementById('f_status').value = 'active';
+}
+
+function deleteMeeting(id) {
+  if (!confirm('Delete this meeting? Attendance records will also be removed.')) return;
+  let m = getMeetings().filter(x => x.id !== id);
+  saveMeetings(m);
+  let a = getAttendance().filter(x => x.meetingId !== id);
+  DB.set('mt_attendance', a);
+  renderMeetings();
+  renderDashboard();
+  showToast('🗑 Meeting deleted');
+}
+
+function toggleStatus(id) {
+  let m = getMeetings();
+  const idx = m.findIndex(x => x.id === id);
+  if (idx < 0) return;
+  m[idx].status = m[idx].status === 'active' ? 'ended' : 'active';
+  saveMeetings(m);
+  renderMeetings();
+  renderDashboard();
+  showToast(m[idx].status === 'active' ? '✅ Activated' : '🔒 Ended');
+}
+
+// ============ QR ============
+let currentQRMeeting = null;
+
+function buildAttendeeURL(meeting) {
+  // Use saved base URL if admin configured one, else auto-detect
+  const savedBase = DB.getStr('mt_base_url', '');
+  let base;
+  if (savedBase) {
+    base = savedBase.replace(/\/+$/, '') + '/';
+  } else {
+    base = window.location.href.replace(/[?#].*$/, '').replace(/\/[^/]*$/, '/');
+  }
+  // Use URLSearchParams only — no manual encodeURIComponent to avoid double encoding
+  const p = new URLSearchParams({
+    id: meeting.id,
+    title: meeting.title,
+    date: meeting.date,
+    time: meeting.time,
+    venue: meeting.venue,
+    topic: meeting.topic
+  });
+  return `${base}meeting-attend.html?${p.toString()}`;
+}
+
+function showQR(meeting) {
+  currentQRMeeting = meeting;
+  document.getElementById('qrModalTitle').textContent = meeting.title;
+  document.getElementById('qrContainer').innerHTML = '';
+  const url = buildAttendeeURL(meeting);
+  document.getElementById('qrUrlBox').textContent = url;
+  new QRCode(document.getElementById('qrContainer'), {
+    text: url, width: 220, height: 220,
+    colorDark: '#000000', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+  document.getElementById('qrMeta').innerHTML = `
+    <div class="qr-meta-row"><span>📅 Date</span><span>${meeting.date} ${meeting.time}</span></div>
+    <div class="qr-meta-row"><span>📍 Venue</span><span>${meeting.venue}</span></div>
+    <div class="qr-meta-row"><span>🎯 Topic</span><span>${meeting.topic.substring(0,50)}${meeting.topic.length>50?'...':''}</span></div>
+    <div class="qr-meta-row"><span>🟢 Status</span><span>${meeting.status === 'active' ? 'Active' : 'Ended'}</span></div>
+  `;
+  document.getElementById('qrModal').style.display = 'flex';
+}
+
+function downloadQR() {
+  const canvas = document.querySelector('#qrContainer canvas');
+  if (!canvas) return;
+  const link = document.createElement('a');
+  link.download = `QR_${currentQRMeeting.title.replace(/\s/g,'_')}.png`;
+  link.href = canvas.toDataURL();
+  link.click();
+}
+
+function printQR() {
+  const canvas = document.querySelector('#qrContainer canvas');
+  if (!canvas) return;
+  const img = canvas.toDataURL();
+  const w = window.open('');
+  w.document.write(`<html><body style="text-align:center;font-family:sans-serif;">
+    <h2>${currentQRMeeting.title}</h2>
+    <p>${currentQRMeeting.date} ${currentQRMeeting.time} | ${currentQRMeeting.venue}</p>
+    <img src="${img}" style="width:300px;">
+    <p style="font-size:12px;color:#666;">${currentQRMeeting.topic}</p>
+    <script>window.onload=()=>{window.print();window.close();}<\/script>
+  </body></html>`);
+}
+
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+// ============ RENDER ============
+function renderDashboard() {
+  const meetings = getMeetings();
+  const attendance = getAttendance();
+  const activeMtg = meetings.filter(m => m.status === 'active').length;
+  const totalAtd = attendance.length;
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayAtd = attendance.filter(a => a.timestamp && a.timestamp.startsWith(todayStr)).length;
+  const uniquePeople = new Set(attendance.map(a => a.name.toLowerCase())).size;
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card"><div class="stat-num">${meetings.length}</div><div class="stat-label">Total Meetings</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--accent2)">${activeMtg}</div><div class="stat-label">Active Now</div></div>
+    <div class="stat-card"><div class="stat-num">${totalAtd}</div><div class="stat-label">Total Attendance</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--warn)">${todayAtd}</div><div class="stat-label">Today's Attendance</div></div>
+  `;
+
+  const recent = meetings.slice(0, 5);
+  if (!recent.length) {
+    document.getElementById('dashMeetings').innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-text">No meetings yet. Create one!</div></div>`;
+    return;
+  }
+  document.getElementById('dashMeetings').innerHTML = renderMeetingCards(recent, attendance);
+}
+
+function renderMeetings() {
+  const meetings = getMeetings();
+  const attendance = getAttendance();
+  if (!meetings.length) {
+    document.getElementById('meetingsList').innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-text">No meetings yet. <a href="#" onclick="switchTab('create')" style="color:var(--accent)">Create one</a></div></div>`;
+    return;
+  }
+  document.getElementById('meetingsList').innerHTML = renderMeetingCards(meetings, attendance, true);
+}
+
+function renderMeetingCards(meetings, attendance, showDelete=false) {
+  return meetings.map(m => {
+    const count = attendance.filter(a => a.meetingId === m.id).length;
+    const statusBadge = m.status === 'active'
+      ? '<span class="status-badge status-active">● Active</span>'
+      : '<span class="status-badge status-ended">Ended</span>';
+    return `
+      <div class="meeting-card">
+        <div class="meeting-card-left">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div class="meeting-name">${escHtml(m.title)}</div>
+            ${statusBadge}
+          </div>
+          <div class="meeting-topic">${escHtml(m.topic.substring(0,100))}${m.topic.length>100?'...':''}</div>
+          <div class="meeting-meta">
+            <div class="meta-chip">📅 ${m.date} ${m.time}</div>
+            <div class="meta-chip">📍 ${escHtml(m.venue)}</div>
+            ${m.dept ? `<div class="meta-chip">🏢 ${escHtml(m.dept)}</div>` : ''}
+            ${m.organizer ? `<div class="meta-chip">👤 ${escHtml(m.organizer)}</div>` : ''}
+          </div>
+        </div>
+        <div class="meeting-card-right">
+          <div>
+            <div class="attend-count">${count}</div>
+            <div class="attend-label">${m.expected ? `of ${m.expected} expected` : 'attended'}</div>
+          </div>
+          <div class="card-actions">
+            <button class="btn-icon" onclick="showQR(getMeetingById('${m.id}'))">📲 QR</button>
+            <button class="btn-icon" onclick="toggleStatus('${m.id}')">${m.status === 'active' ? '🔒 End' : '✅ Activate'}</button>
+            ${showDelete ? `<button class="btn-danger" onclick="deleteMeeting('${m.id}')">🗑</button>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function getMeetingById(id) { return getMeetings().find(m => m.id === id); }
+
+function populateAttendanceFilter() {
+  const sel = document.getElementById('attendMeetingFilter');
+  const cur = sel.value;
+  const meetings = getMeetings();
+  sel.innerHTML = '<option value="">All Meetings</option>' + meetings.map(m =>
+    `<option value="${m.id}" ${m.id===cur?'selected':''}>${escHtml(m.title)} (${m.date})</option>`
+  ).join('');
+}
+
+function renderAttendance() {
+  const attendance = getAttendance();
+  const filterMtg = document.getElementById('attendMeetingFilter').value;
+  const search = document.getElementById('attendSearch').value.toLowerCase();
+  const meetings = getMeetings();
+
+  let filtered = attendance;
+  if (filterMtg) filtered = filtered.filter(a => a.meetingId === filterMtg);
+  if (search) filtered = filtered.filter(a => a.name.toLowerCase().includes(search) || (a.designation||'').toLowerCase().includes(search));
+
+  filtered.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  const tbody = document.getElementById('attendBody');
+  const empty = document.getElementById('attendEmpty');
+
+  if (!filtered.length) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  tbody.innerHTML = filtered.map((a, i) => {
+    const mtg = meetings.find(m => m.id === a.meetingId);
+    const sigCell = a.sigType === 'draw' && a.signature
+      ? `<img class="sig-thumb" src="${a.signature}" onclick="viewSig('${escHtml(a.name)}','${a.signature}')" title="Click to view">`
+      : a.sigType === 'text'
+        ? `<span class="sig-text-chip">✍️ ${escHtml(a.signature)}</span>`
+        : '—';
+    return `
+      <tr>
+        <td style="color:var(--muted)">${i+1}</td>
+        <td><strong>${escHtml(a.name)}</strong></td>
+        <td>${escHtml(a.designation||'—')}</td>
+        <td>${escHtml(a.department||'—')}</td>
+        <td style="font-size:12px;color:var(--muted)">${mtg ? escHtml(mtg.title) : a.meetingId}</td>
+        <td style="font-size:12px">${a.timestamp ? new Date(a.timestamp).toLocaleString('en-IN') : '—'}</td>
+        <td>${sigCell}</td>
+        <td style="font-size:11px;color:var(--muted)">${escHtml(a.device||'—')}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function viewSig(name, src) {
+  document.getElementById('sigViewName').textContent = name;
+  document.getElementById('sigViewImg').src = src;
+  document.getElementById('sigViewModal').style.display = 'flex';
+}
+
+// ============ EXPORT ============
+function exportCSV() {
+  const attendance = getAttendance();
+  const meetings = getMeetings();
+  const filterMtg = document.getElementById('attendMeetingFilter').value;
+  let data = filterMtg ? attendance.filter(a => a.meetingId === filterMtg) : attendance;
+  if (!data.length) { showToast('No data to export', true); return; }
+  const header = ['#','Name','Designation','Department','Meeting Title','Meeting Date','Venue','Marked At','Signature Type','Device'];
+  const rows = data.map((a, i) => {
+    const mtg = meetings.find(m => m.id === a.meetingId);
+    return [i+1, a.name, a.designation||'', a.department||'', mtg?mtg.title:'', mtg?mtg.date:'', mtg?mtg.venue:'', a.timestamp?new Date(a.timestamp).toLocaleString('en-IN'):'', a.sigType||'', a.device||''].map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+  });
+  download([header.join(','), ...rows].join('\n'), 'MeetTrack_Attendance.csv', 'text/csv');
+  showToast('✅ CSV exported!');
+}
+
+function exportJSON() {
+  const attendance = getAttendance();
+  const filterMtg = document.getElementById('attendMeetingFilter').value;
+  let data = filterMtg ? attendance.filter(a => a.meetingId === filterMtg) : attendance;
+  if (!data.length) { showToast('No data to export', true); return; }
+  const clean = data.map(a => { const c = {...a}; delete c.signature; return c; });
+  download(JSON.stringify(clean, null, 2), 'MeetTrack_Attendance.json', 'application/json');
+  showToast('✅ JSON exported!');
+}
+
+function download(content, filename, type) {
+  const blob = new Blob([content], {type});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ============ SETTINGS ============
+function initSettings() {
+  const saved = DB.getStr('mt_base_url', '');
+  document.getElementById('s_baseurl').value = saved;
+  updateUrlPreview();
+}
+
+function updateUrlPreview() {
+  const val = document.getElementById('s_baseurl').value.trim();
+  const base = val ? val.replace(/\/+$/,'') + '/' : (window.location.href.replace(/[?#].*$/, '').replace(/\/[^/]*$/, '/'));
+  document.getElementById('s_urlPreview').textContent = '📲 ' + base + 'meeting-attend.html?id=MTG_xxx&title=...';
+}
+
+document.addEventListener('input', (e) => { if (e.target.id === 's_baseurl') updateUrlPreview(); });
+
+function saveBaseUrl() {
+  const val = document.getElementById('s_baseurl').value.trim();
+  if (val && !val.startsWith('http')) {
+    showToast('❌ URL must start with http:// or https://', true); return;
+  }
+  localStorage.setItem('mt_base_url', val);
+  updateUrlPreview();
+  showToast('✅ Base URL saved! New QR codes will use this URL.');
+}
+
+function clearBaseUrl() {
+  localStorage.removeItem('mt_base_url');
+  document.getElementById('s_baseurl').value = '';
+  updateUrlPreview();
+  showToast('🔄 Reset to auto-detect');
+}
+
+function changePin() {
+  const cur = document.getElementById('s_current').value;
+  const nw = document.getElementById('s_new').value;
+  const conf = document.getElementById('s_confirm').value;
+  if (cur !== getPin()) { showToast('❌ Current PIN wrong', true); return; }
+  if (nw.length !== 4 || !/^\d{4}$/.test(nw)) { showToast('❌ PIN must be 4 digits', true); return; }
+  if (nw !== conf) { showToast('❌ PINs do not match', true); return; }
+  localStorage.setItem('mt_pin', nw);
+  ['s_current','s_new','s_confirm'].forEach(id => document.getElementById(id).value = '');
+  showToast('✅ PIN updated!');
+}
+
+function clearAllData() {
+  if (!confirm('⚠️ ALL meetings and attendance data will be permanently deleted. Are you sure?')) return;
+  if (!confirm('Final confirm — this cannot be undone!')) return;
+  localStorage.removeItem('mt_meetings');
+  localStorage.removeItem('mt_attendance');
+  renderDashboard(); renderMeetings(); renderAttendance();
+  showToast('🗑 All data cleared');
+}
+
+// ============ UTILS ============
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg, err=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (err?' error':'');
+  clearTimeout(t._to);
+  t._to = setTimeout(() => t.className = 'toast', 3000);
+}
+
+// Window click closes modals
+window.addEventListener('click', e => {
+  ['qrModal','sigViewModal'].forEach(id => {
+    const el = document.getElementById(id);
+    if (e.target === el) el.style.display = 'none';
+  });
+});
+
+// Enter key on login
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('loginScreen').style.display !== 'none') doLogin();
+});
+</script>
+</body>
+</html>
